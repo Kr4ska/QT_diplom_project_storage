@@ -5,6 +5,8 @@
 #include <QRandomGenerator>
 #include <QtConcurrent/QtConcurrent>
 #include <QThreadPool>
+#include <QQueue>
+#include <QSet>
 
 LayoutOptimizer::LayoutOptimizer(QObject *parent) : QObject(parent) {}
 
@@ -167,6 +169,37 @@ bool LayoutOptimizer::isPointInsideOBB(double px, double py, const WarehouseObje
 
 // ---------------- РАСЧЕТ ЭНЕРГИИ ----------------
 
+bool LayoutOptimizer::isGraphConnected(const QVector<PathNode>& nodes, const QVector<PathEdge>& edges) const {
+    if (nodes.isEmpty()) return true;
+
+    QMap<int, QVector<int>> adjacencyList;
+    for (const auto& edge : edges) {
+        adjacencyList[edge.startNodeId].append(edge.endNodeId);
+        // Предполагаем, что для проверки связности граф неориентированный
+        adjacencyList[edge.endNodeId].append(edge.startNodeId);
+    }
+
+    QSet<int> visited;
+    QQueue<int> queue;
+
+    // Начинаем с первого попавшегося узла
+    int startNode = nodes.first().id;
+    queue.enqueue(startNode);
+    visited.insert(startNode);
+
+    while (!queue.isEmpty()) {
+        int current = queue.dequeue();
+        for (int neighbor : adjacencyList[current]) {
+            if (!visited.contains(neighbor)) {
+                visited.insert(neighbor);
+                queue.enqueue(neighbor);
+            }
+        }
+    }
+
+    return visited.size() == nodes.size();
+}
+
 double LayoutOptimizer::pointToSegmentDistance(double px, double py, double x1, double y1, double x2, double y2) const {
     double dx = x2 - x1;
     double dy = y2 - y1;
@@ -180,8 +213,13 @@ double LayoutOptimizer::pointToSegmentDistance(double px, double py, double x1, 
     return std::sqrt((px - closestX)*(px - closestX) + (py - closestY)*(py - closestY));
 }
 
-double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const {
+double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<PathEdge>& edges, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const {
     double energy = 0.0;
+
+    // 0. Строгий штраф за разрыв графа путей
+    if (!isGraphConnected(nodes, edges)) {
+        energy += 100000;
+    }
 
     for (int i = 0; i < layout.size(); ++i) {
         const auto& obj = layout[i];
@@ -220,7 +258,7 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
         // 3. Коллизии с путями роботов (чтобы объекты не перекрывали коридоры)
         // И проверка доступности пути (расстояние должно быть примерно равно maxRobotWidth/2)
         double minDistanceToPath = std::numeric_limits<double>::max();
-        for (const auto& edge : m_edges) {
+        for (const auto& edge : edges) {
             const PathNode* n1 = nullptr;
             const PathNode* n2 = nullptr;
             for (const auto& n : nodes) {
@@ -306,7 +344,7 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
     double alpha = 0.99; // Коэффициент охлаждения
     int iterationsPerTemp = 100;
 
-    double currentEnergy = calculateEnergy(m_layout, m_nodes, corridors, maxRobotWidth);
+    double currentEnergy = calculateEnergy(m_layout, m_nodes, m_edges, corridors, maxRobotWidth);
     double initialEnergy = currentEnergy;
 
     auto* rng = QRandomGenerator::global();
@@ -327,19 +365,29 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
                 int nodeMutType = rng->bounded(100);
 
                 if (nodeMutType < 5 && nextNodes.size() > 2) {
-                    // 5% Удаление узла пути (если это не старт)
+                    // 5% Удаление "аппендикса" (узел с 1 или 0 связями, не старт)
                     int idx = rng->bounded(nextNodes.size());
                     if (nextNodes[idx].type != "start") {
                         int nodeIdToRemove = nextNodes[idx].id;
-                        nextNodes.removeAt(idx);
 
-                        // Удаляем ребра, связанные с этим узлом
-                        for (int j = nextEdges.size() - 1; j >= 0; --j) {
-                            if (nextEdges[j].startNodeId == nodeIdToRemove || nextEdges[j].endNodeId == nodeIdToRemove) {
-                                nextEdges.removeAt(j);
+                        // Считаем степень узла
+                        int degree = 0;
+                        for (const auto& edge : nextEdges) {
+                            if (edge.startNodeId == nodeIdToRemove || edge.endNodeId == nodeIdToRemove) {
+                                degree++;
                             }
                         }
-                        deletedNode = true;
+
+                        if (degree <= 1) {
+                            nextNodes.removeAt(idx);
+                            // Удаляем ребра, связанные с этим узлом
+                            for (int j = nextEdges.size() - 1; j >= 0; --j) {
+                                if (nextEdges[j].startNodeId == nodeIdToRemove || nextEdges[j].endNodeId == nodeIdToRemove) {
+                                    nextEdges.removeAt(j);
+                                }
+                            }
+                            deletedNode = true;
+                        }
                     }
                 } else {
                     // 95% Сдвиг узла
@@ -380,7 +428,7 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
             }
 
             // Вычисляем энергию нового состояния
-            double nextEnergy = calculateEnergy(nextLayout, nextNodes, nextCorridors, maxRobotWidth);
+            double nextEnergy = calculateEnergy(nextLayout, nextNodes, nextEdges, nextCorridors, maxRobotWidth);
 
             // Добавляем поощрение за меньшее количество узлов (чтобы отжиг стремился удалять лишние)
             if (deletedNode) {

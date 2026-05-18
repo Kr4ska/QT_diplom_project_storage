@@ -138,7 +138,8 @@ private:
     bool isPointInsideOBB(double px, double py, const WarehouseObject& obj) const;
 
     // Расчет энергии
-    double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const;
+    bool isGraphConnected(const QVector<PathNode>& nodes, const QVector<PathEdge>& edges) const;
+    double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<PathEdge>& edges, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const;
     double pointToSegmentDistance(double px, double py, double x1, double y1, double x2, double y2) const;
 
     // Сборка ответа для QML
