@@ -362,6 +362,28 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
         corridors << edge.getCorridorOBB(m_nodes, maxRobotWidth);
     }
 
+    auto snapRobotsToNodes = [](QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes) {
+        if (nodes.isEmpty()) return;
+        for (auto& obj : layout) {
+            if (obj.type == "robot") {
+                double minDist = std::numeric_limits<double>::max();
+                int bestNodeIdx = 0;
+                for (int i = 0; i < nodes.size(); ++i) {
+                    double dist = std::sqrt((obj.x - nodes[i].x)*(obj.x - nodes[i].x) + (obj.y - nodes[i].y)*(obj.y - nodes[i].y));
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestNodeIdx = i;
+                    }
+                }
+                obj.x = nodes[bestNodeIdx].x;
+                obj.y = nodes[bestNodeIdx].y;
+            }
+        }
+    };
+
+    // Выравниваем роботов перед стартом
+    snapRobotsToNodes(m_layout, m_nodes);
+
     // 2. Параметры алгоритма имитации отжига (Simulated Annealing)
     // T_initial снижена, чтобы алгоритм не разрушал изначальную расстановку полностью.
     double T_initial = 200.0;
@@ -430,19 +452,31 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
 
                 int mutationType = rng->bounded(100);
 
-                if (mutationType < 20) {
-                    // 20% Вращение ровно на 90 градусов (по просьбе пользователя)
-                    nextLayout[idx].angle += 90.0;
-                    if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
+                if (nextLayout[idx].type == "robot") {
+                    // Если это робот, перебрасываем его на случайный узел
+                    if (!nextNodes.isEmpty()) {
+                        int randNodeIdx = rng->bounded(nextNodes.size());
+                        nextLayout[idx].x = nextNodes[randNodeIdx].x;
+                        nextLayout[idx].y = nextNodes[randNodeIdx].y;
+                    }
                 } else {
-                    // 80% Небольшой сдвиг
-                    double shiftRange = std::max(0.1, 0.5 * (T / T_initial)); // Максимум 0.5м сдвига
-                    double shiftX = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
-                    double shiftY = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
-                    nextLayout[idx].x += shiftX;
-                    nextLayout[idx].y += shiftY;
+                    if (mutationType < 20) {
+                        // 20% Вращение ровно на 90 градусов (по просьбе пользователя)
+                        nextLayout[idx].angle += 90.0;
+                        if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
+                    } else {
+                        // 80% Небольшой сдвиг
+                        double shiftRange = std::max(0.1, 0.5 * (T / T_initial)); // Максимум 0.5м сдвига
+                        double shiftX = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                        double shiftY = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                        nextLayout[idx].x += shiftX;
+                        nextLayout[idx].y += shiftY;
+                    }
                 }
             }
+
+            // Обязательное жесткое правило: роботы ВСЕГДА на узлах
+            snapRobotsToNodes(nextLayout, nextNodes);
 
             // При мутации узлов нужно перестроить коридоры
             QVector<WarehouseObject> nextCorridors = corridors;
