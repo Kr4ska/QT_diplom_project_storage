@@ -57,6 +57,7 @@ struct PathEdge
     int id;
     int startNodeId;
     int endNodeId;
+    bool twoWayTraffic = false;
 
     WarehouseObject getCorridorOBB(const QVector<PathNode> &nodes, double robotWidth) const
     {
@@ -119,7 +120,7 @@ public slots:
 
 signals:
     // Сигналы для общения с QML и основным потоком
-    void optimizationFinished(QVariantList updatedLayout, QVariantList updatedNodes);
+    void optimizationFinished(QVariantList updatedLayout, QVariantList updatedNodes, QVariantList updatedEdges);
     void progressUpdated(int percent);
 
 private:
@@ -134,6 +135,7 @@ private:
     void project(const QVector<QPointF>& v, const QPointF& axis, double& min, double& max) const;
     bool isOverlapping(const WarehouseObject& a, const WarehouseObject& b) const;
     double getOverlapDistance(const WarehouseObject& a, const WarehouseObject& b) const;
+    bool isPointInsideOBB(double px, double py, const WarehouseObject& obj) const;
 
     // Расчет энергии
     double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const;
@@ -142,6 +144,7 @@ private:
     // Сборка ответа для QML
     QVariantList packLayoutToVariant() const;
     QVariantList packNodesToVariant() const;
+    QVariantList packEdgesToVariant() const;
 };
 
 #endif // LAYOUTOPTIMIZER_H

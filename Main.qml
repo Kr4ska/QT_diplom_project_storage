@@ -52,10 +52,15 @@ ApplicationWindow {
     LayoutOptimizer {
         id: optimizer
 
-        onOptimizationFinished: (updatedLayout, updatedNodes) => {
+        onOptimizationFinished: (updatedLayout, updatedNodes, updatedEdges) => {
             console.log("Оптимизация завершена!");
             mainRoot.lastGeneratedData.layout = updatedLayout;
             mainRoot.lastGeneratedData.nodes = updatedNodes;
+            mainRoot.lastGeneratedData.edges = updatedEdges;
+
+            // Explicitly force property changed event for QML bindings
+            mainRoot.lastGeneratedData = mainRoot.lastGeneratedData;
+
             mainCanvas.requestPaint();
             busyLoading.running = false;
             statusLabel.text = "Оптимизация завершена";
@@ -527,6 +532,8 @@ ApplicationWindow {
                     if (mouse.button === Qt.LeftButton) {
                         mainRoot.isDragging = false;
                         mainRoot.isRotating = false;
+                        // Force property change to register manual modifications so SA respects the new initial position
+                        mainRoot.lastGeneratedData = mainRoot.lastGeneratedData;
                     }
                 }
 

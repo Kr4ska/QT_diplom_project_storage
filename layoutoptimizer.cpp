@@ -34,6 +34,7 @@ void LayoutOptimizer::setEnvironment(const QVariantMap& walls, const QVariantLis
         e.id = edgeMap["EdgeID"].toInt();
         e.startNodeId = edgeMap["StartNodeID"].toInt();
         e.endNodeId = edgeMap["EndNodeID"].toInt();
+        e.twoWayTraffic = edgeMap["TwoWayTraffic"].toBool();
         m_edges.append(e);
     }
 }
@@ -144,6 +145,26 @@ double LayoutOptimizer::getOverlapDistance(const WarehouseObject& a, const Wareh
     return minOverlap;
 }
 
+bool LayoutOptimizer::isPointInsideOBB(double px, double py, const WarehouseObject& obj) const {
+    double rad = -obj.angle * M_PI / 180.0;
+    double cosA = std::cos(rad);
+    double sinA = std::sin(rad);
+
+    // Переводим точку в локальную систему координат объекта
+    double dx = px - obj.x;
+    double dy = py - obj.y;
+
+    double localX = dx * cosA - dy * sinA;
+    double localY = dx * sinA + dy * cosA;
+
+    // В локальной СК объект центрирован в (0,0) и не повернут
+    // Добавляем небольшой буфер (0.5м) чтобы узлы не были "впритык" к объектам или в углах
+    double hw = obj.w / 2.0 + 0.5;
+    double hl = obj.l / 2.0 + 0.5;
+
+    return (std::abs(localX) <= hw && std::abs(localY) <= hl);
+}
+
 // ---------------- РАСЧЕТ ЭНЕРГИИ ----------------
 
 double LayoutOptimizer::pointToSegmentDistance(double px, double py, double x1, double y1, double x2, double y2) const {
@@ -246,6 +267,13 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
                 energy += deviation * 20; // Мягкий штраф
             }
         }
+
+        // 6. Штраф, если узел находится внутри или слишком близко к объектам
+        for (const auto& obj : layout) {
+            if (isPointInsideOBB(node.x, node.y, obj)) {
+                energy += 10000; // Очень высокий штраф, узлы не должны быть внутри или впритык к объектам
+            }
+        }
     }
 
     return energy;
@@ -288,16 +316,39 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
         for (int i = 0; i < iterationsPerTemp; ++i) {
             QVector<WarehouseObject> nextLayout = m_layout;
             QVector<PathNode> nextNodes = m_nodes;
+            QVector<PathEdge> nextEdges = m_edges;
 
-            // Выбираем, что мутируем: объект или узел пути (с вероятностью 20% мутируем узел)
-            bool mutateNode = (rng->bounded(100) < 20) && !nextNodes.isEmpty();
+            // Выбираем, что мутируем: объект или узел пути (с вероятностью 25% мутируем узел)
+            int mutationCategory = rng->bounded(100);
+            bool mutateNode = (mutationCategory < 25) && !nextNodes.isEmpty();
+            bool deletedNode = false;
 
             if (mutateNode) {
-                int idx = rng->bounded(nextNodes.size());
-                if (nextNodes[idx].type != "start") {
-                    double shiftRange = std::max(0.1, 0.5 * (T / T_initial));
-                    nextNodes[idx].x += (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
-                    nextNodes[idx].y += (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                int nodeMutType = rng->bounded(100);
+
+                if (nodeMutType < 5 && nextNodes.size() > 2) {
+                    // 5% Удаление узла пути (если это не старт)
+                    int idx = rng->bounded(nextNodes.size());
+                    if (nextNodes[idx].type != "start") {
+                        int nodeIdToRemove = nextNodes[idx].id;
+                        nextNodes.removeAt(idx);
+
+                        // Удаляем ребра, связанные с этим узлом
+                        for (int j = nextEdges.size() - 1; j >= 0; --j) {
+                            if (nextEdges[j].startNodeId == nodeIdToRemove || nextEdges[j].endNodeId == nodeIdToRemove) {
+                                nextEdges.removeAt(j);
+                            }
+                        }
+                        deletedNode = true;
+                    }
+                } else {
+                    // 95% Сдвиг узла
+                    int idx = rng->bounded(nextNodes.size());
+                    if (nextNodes[idx].type != "start") {
+                        double shiftRange = std::max(0.1, 0.5 * (T / T_initial));
+                        nextNodes[idx].x += (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                        nextNodes[idx].y += (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                    }
                 }
             } else if (!nextLayout.isEmpty()) {
                 int idx = rng->bounded(nextLayout.size());
@@ -305,14 +356,8 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
 
                 int mutationType = rng->bounded(100);
 
-                if (mutationType < 10) {
-                    // 10% Произвольное небольшое вращение (до 45 градусов)
-                    double angleShift = (rng->generateDouble() * 90.0) - 45.0;
-                    nextLayout[idx].angle += angleShift;
-                    if (nextLayout[idx].angle < 0.0) nextLayout[idx].angle += 360.0;
-                    if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
-                } else if (mutationType < 20) {
-                    // 10% Вращение ровно на 90 градусов (полезно для стеллажей)
+                if (mutationType < 20) {
+                    // 20% Вращение ровно на 90 градусов (по просьбе пользователя)
                     nextLayout[idx].angle += 90.0;
                     if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
                 } else {
@@ -329,13 +374,19 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
             QVector<WarehouseObject> nextCorridors = corridors;
             if (mutateNode) {
                 nextCorridors.clear();
-                for (const auto& edge : m_edges) {
+                for (const auto& edge : nextEdges) {
                     nextCorridors << edge.getCorridorOBB(nextNodes, maxRobotWidth);
                 }
             }
 
             // Вычисляем энергию нового состояния
             double nextEnergy = calculateEnergy(nextLayout, nextNodes, nextCorridors, maxRobotWidth);
+
+            // Добавляем поощрение за меньшее количество узлов (чтобы отжиг стремился удалять лишние)
+            if (deletedNode) {
+                 nextEnergy -= 1000;
+            }
+
             double dE = nextEnergy - currentEnergy;
 
             // Критерий Метрополиса:
@@ -346,6 +397,7 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
                 m_layout = nextLayout;
                 m_nodes = nextNodes;
                 if (mutateNode) {
+                    m_edges = nextEdges;
                     corridors = nextCorridors;
                 }
                 currentEnergy = nextEnergy;
@@ -366,7 +418,7 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
     qDebug() << "🏁 Optimization finished. Energy dropped from" << initialEnergy << "to" << currentEnergy;
 
     // 3. Отправляем результат обратно в QML
-    emit optimizationFinished(packLayoutToVariant(), packNodesToVariant());
+    emit optimizationFinished(packLayoutToVariant(), packNodesToVariant(), packEdgesToVariant());
 }
 
 // ---------------- УПАКОВКА ОБРАТНО В JSON/QML ----------------
@@ -386,6 +438,19 @@ QVariantList LayoutOptimizer::packLayoutToVariant() const {
         map["Width"] = obj.w;
         map["Length"] = obj.l;
         map["Type"] = obj.type;
+        list.append(map);
+    }
+    return list;
+}
+
+QVariantList LayoutOptimizer::packEdgesToVariant() const {
+    QVariantList list;
+    for (const auto& edge : m_edges) {
+        QVariantMap map;
+        map["EdgeID"] = edge.id;
+        map["StartNodeID"] = edge.startNodeId;
+        map["EndNodeID"] = edge.endNodeId;
+        map["TwoWayTraffic"] = edge.twoWayTraffic;
         list.append(map);
     }
     return list;
