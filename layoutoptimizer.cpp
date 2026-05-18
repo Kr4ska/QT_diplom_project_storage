@@ -289,9 +289,16 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
         double targetDistance = std::max(obj.w, obj.l) / 2.0 + maxRobotWidth / 2.0;
 
         if (obj.type == "robot") {
-            // Роботы должны стоять прямо на пути или очень близко к нему
-            if (minDistanceToPath > maxRobotWidth / 2.0) {
-                energy += 10000 * (minDistanceToPath); // Строгий штраф
+            // Роботы должны находиться точно на узле (в центре)
+            double minDistToNode = std::numeric_limits<double>::max();
+            for (const auto& n : nodes) {
+                double dist = std::sqrt((obj.x - n.x) * (obj.x - n.x) + (obj.y - n.y) * (obj.y - n.y));
+                if (dist < minDistToNode) {
+                    minDistToNode = dist;
+                }
+            }
+            if (minDistToNode > 0.05) { // Небольшой допуск (5 см), чтобы избежать плавающих ошибок
+                energy += 20000 * minDistToNode; // Очень строгий штраф за отдаление от узла
             }
         } else {
             // Станки и стеллажи должны быть доступны с пути
