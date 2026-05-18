@@ -282,8 +282,17 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
 
         // Штраф, если путь слишком далеко или слишком близко от объекта
         double targetDistance = std::max(obj.w, obj.l) / 2.0 + maxRobotWidth / 2.0;
-        if (minDistanceToPath > targetDistance + 1.0) {
-            energy += 200 * (minDistanceToPath - targetDistance); // Слишком далеко
+
+        if (obj.type == "robot") {
+            // Роботы должны стоять прямо на пути или очень близко к нему
+            if (minDistanceToPath > maxRobotWidth) {
+                energy += 10000 * (minDistanceToPath); // Строгий штраф
+            }
+        } else {
+            // Станки и стеллажи должны быть доступны с пути
+            if (minDistanceToPath > targetDistance + 1.0) {
+                energy += 5000 * (minDistanceToPath - targetDistance); // Строгий штраф за недоступность
+            }
         }
 
         // 4. Штраф за сильное отклонение от начальной позиции (сохраняем первоначальный замысел)
