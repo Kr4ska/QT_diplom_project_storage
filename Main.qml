@@ -50,43 +50,22 @@ ApplicationWindow {
     }
 
     LayoutOptimizer {
-            id: optimizer
+        id: optimizer
 
-            // Этот сигнал сработает, когда C++ закончит считать
-            onOptimizationFinished: (updatedLayout) => {
-                console.log("Оптимизация завершена!");
-                // Обновляем нашу модель данных в QML
-                lastGeneratedData.layout = updatedLayout;
-                // Перерисовываем Canvas
-                myCanvas.requestPaint();
-
-                // Выключаем индикатор загрузки
-                loadingOverlay.visible = false;
-            }
+        onOptimizationFinished: (updatedLayout) => {
+            console.log("Оптимизация завершена!");
+            mainRoot.lastGeneratedData.layout = updatedLayout;
+            mainCanvas.requestPaint();
+            busyLoading.running = false;
+            statusLabel.text = "Оптимизация завершена";
+            progressBar.value = 100;
+            progressBar.visible = false;
         }
 
-        // Кнопка запуска
-        Button {
-            text: "Оптимизировать расстановку"
-            onClicked: {
-                loadingOverlay.visible = true; // Показываем лоадер
-
-                // 1. Передаем окружение (стены и пути)
-                // Эти данные у тебя уже есть в JSON
-                optimizer.setEnvironment(
-                    currentWalls,
-                    lastGeneratedData.nodes,
-                    lastGeneratedData.edges
-                );
-
-                // 2. Подготавливаем данные (вытягиваем размеры из БД в основном потоке)
-                optimizer.prepareLayout(lastGeneratedData.layout, dbManager);
-
-                // 3. Запускаем расчет (в идеале здесь должен быть QThread,
-                // но для начала проверим прямой вызов)
-                optimizer.startOptimization(1.2); // 1.2 метра — макс. ширина робота
-            }
+        onProgressUpdated: (percent) => {
+            progressBar.value = percent;
         }
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -344,6 +323,28 @@ ApplicationWindow {
                         statusLabel.text = "Готово. Кликните на объект, стену или узел.";
                         btnSaveToDB.enabled = true;
                         mainCanvas.requestPaint(); gridCanvas.requestPaint();
+                    }
+                }
+
+                Button {
+                    id: btnOptimize
+                    text: "ОПТИМИЗИРОВАТЬ ОТЖИГОМ"
+                    Layout.fillWidth: true
+                    enabled: isDbConnected && mainRoot.lastGeneratedData.layout.length > 0 && !busyLoading.running
+                    onClicked: {
+                        busyLoading.running = true;
+                        progressBar.visible = true;
+                        progressBar.value = 0;
+                        statusLabel.text = "Оптимизация...";
+
+                        optimizer.setEnvironment(
+                            mainRoot.lastGeneratedData.walls,
+                            mainRoot.lastGeneratedData.nodes,
+                            mainRoot.lastGeneratedData.edges
+                        );
+
+                        optimizer.prepareLayout(mainRoot.lastGeneratedData.layout, dbManager);
+                        optimizer.runAsyncOptimization(1.2);
                     }
                 }
 
@@ -788,6 +789,14 @@ ApplicationWindow {
         RowLayout {
             anchors.fill: parent; anchors.leftMargin: 15; anchors.rightMargin: 15
             Label { id: statusLabel; text: "Система готова"; color: "#888"; font.pixelSize: 12 }
+            ProgressBar {
+                id: progressBar
+                Layout.fillWidth: true
+                Layout.maximumWidth: 300
+                from: 0
+                to: 100
+                visible: false
+            }
             Item { Layout.fillWidth: true }
             BusyIndicator { id: busyLoading; running: false; implicitHeight: 24; implicitWidth: 24 }
         }

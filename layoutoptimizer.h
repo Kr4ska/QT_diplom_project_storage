@@ -16,6 +16,7 @@ class DatabaseManager; // Предварительное объявление
 struct WarehouseObject
 {
     int instanceId;
+    QString modelId;
     double x, y;
     double w, l;
     double angle;
@@ -95,18 +96,18 @@ class LayoutOptimizer : public QObject
 public:
     explicit LayoutOptimizer(QObject *parent = nullptr);
 
+public slots:
     // Установка статических данных (стены и пути)
-    void setEnvironment(const WallConstraints &walls,
-                        const QVector<PathNode> &nodes,
-                        const QVector<PathEdge> &edges);
+    Q_INVOKABLE void setEnvironment(const QVariantMap &walls,
+                                    const QVariantList &nodes,
+                                    const QVariantList &edges);
 
     // Подготовка (обогащение) данных из БД. ВАЖНО: вызывать в основном потоке!
-    void prepareLayout(const QVariantList &rawLayout, DatabaseManager *dbManager);
+    Q_INVOKABLE void prepareLayout(const QVariantList &rawLayout, QObject *dbManagerObj);
 
-public slots:
     // Главный метод запуска отжига
-    void startOptimization(double maxRobotWidth);
-    void runAsyncOptimization(double maxRobotWidth);
+    Q_INVOKABLE void startOptimization(double maxRobotWidth);
+    Q_INVOKABLE void runAsyncOptimization(double maxRobotWidth);
 
 signals:
     // Сигналы для общения с QML и основным потоком
@@ -121,9 +122,10 @@ private:
     WallConstraints m_walls;
 
     // Математика SAT (Детектор столкновений)
-    QVector<QPointF> getAxes(const QVector<QPointF>& v) const;
+    void getAxes(const QVector<QPointF>& v, QVector<QPointF>& axes) const;
     void project(const QVector<QPointF>& v, const QPointF& axis, double& min, double& max) const;
     bool isOverlapping(const WarehouseObject& a, const WarehouseObject& b) const;
+    double getOverlapDistance(const WarehouseObject& a, const WarehouseObject& b) const;
 
     // Расчет энергии
     double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<WarehouseObject>& corridors) const;
