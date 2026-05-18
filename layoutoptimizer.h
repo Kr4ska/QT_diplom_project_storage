@@ -135,7 +135,7 @@ private:
     void project(const QVector<QPointF>& v, const QPointF& axis, double& min, double& max) const;
     bool isOverlapping(const WarehouseObject& a, const WarehouseObject& b) const;
     double getOverlapDistance(const WarehouseObject& a, const WarehouseObject& b) const;
-    bool isPointInsideOBB(double px, double py, const WarehouseObject& obj) const;
+    bool isPointInsideOBB(double px, double py, const WarehouseObject& obj, double buffer = 0.5) const;
 
     // Расчет энергии
     bool isGraphConnected(const QVector<PathNode>& nodes, const QVector<PathEdge>& edges) const;

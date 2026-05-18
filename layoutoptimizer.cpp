@@ -88,7 +88,10 @@ void LayoutOptimizer::getAxes(const QVector<QPointF>& v, QVector<QPointF>& axes)
         QPointF p1 = v[i];
         QPointF p2 = v[(i + 1) % v.size()];
         QPointF edge = p2 - p1;
-        axes << QPointF(-edge.y(), edge.x()); // Нормаль
+        double length = std::sqrt(edge.x() * edge.x() + edge.y() * edge.y());
+        if (length > 0) {
+            axes << QPointF(-edge.y() / length, edge.x() / length); // Нормализованная нормаль
+        }
     }
 }
 
@@ -147,7 +150,7 @@ double LayoutOptimizer::getOverlapDistance(const WarehouseObject& a, const Wareh
     return minOverlap;
 }
 
-bool LayoutOptimizer::isPointInsideOBB(double px, double py, const WarehouseObject& obj) const {
+bool LayoutOptimizer::isPointInsideOBB(double px, double py, const WarehouseObject& obj, double buffer) const {
     double rad = -obj.angle * M_PI / 180.0;
     double cosA = std::cos(rad);
     double sinA = std::sin(rad);
@@ -160,9 +163,8 @@ bool LayoutOptimizer::isPointInsideOBB(double px, double py, const WarehouseObje
     double localY = dx * sinA + dy * cosA;
 
     // В локальной СК объект центрирован в (0,0) и не повернут
-    // Добавляем небольшой буфер (0.5м) чтобы узлы не были "впритык" к объектам или в углах
-    double hw = obj.w / 2.0 + 0.5;
-    double hl = obj.l / 2.0 + 0.5;
+    double hw = obj.w / 2.0 + buffer;
+    double hl = obj.l / 2.0 + buffer;
 
     return (std::abs(localX) <= hw && std::abs(localY) <= hl);
 }
@@ -273,10 +275,13 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
             }
         }
 
-        for (const auto& corridor : corridors) {
-            double overlap = getOverlapDistance(obj, corridor);
-            if (overlap > 0) {
-                energy += 8000 + overlap * 3000;
+        // Роботы могут находиться на путях, не штрафуем их за коллизии с коридорами
+        if (obj.type != "robot") {
+            for (const auto& corridor : corridors) {
+                double overlap = getOverlapDistance(obj, corridor);
+                if (overlap > 0) {
+                    energy += 8000 + overlap * 3000;
+                }
             }
         }
 
@@ -285,12 +290,13 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
 
         if (obj.type == "robot") {
             // Роботы должны стоять прямо на пути или очень близко к нему
-            if (minDistanceToPath > maxRobotWidth) {
+            if (minDistanceToPath > maxRobotWidth / 2.0) {
                 energy += 10000 * (minDistanceToPath); // Строгий штраф
             }
         } else {
             // Станки и стеллажи должны быть доступны с пути
-            if (minDistanceToPath > targetDistance + 1.0) {
+            // Уменьшаем допуск: путь должен быть не дальше 0.5м от идеального targetDistance
+            if (minDistanceToPath > targetDistance + 0.5) {
                 energy += 5000 * (minDistanceToPath - targetDistance); // Строгий штраф за недоступность
             }
         }
@@ -317,8 +323,12 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
 
         // 6. Штраф, если узел находится внутри или слишком близко к объектам
         for (const auto& obj : layout) {
-            if (isPointInsideOBB(node.x, node.y, obj)) {
-                energy += 10000; // Очень высокий штраф, узлы не должны быть внутри или впритык к объектам
+            if (obj.type != "robot") {
+                // Буфер зависит от ширины робота: половина ширины минус небольшой допуск,
+                // чтобы узлы могли проходить рядом с объектами, но не врезаться в углы.
+                if (isPointInsideOBB(node.x, node.y, obj, maxRobotWidth / 2.0 - 0.1)) {
+                    energy += 10000; // Очень высокий штраф, узлы не должны быть внутри или впритык к объектам
+                }
             }
         }
     }
@@ -438,12 +448,6 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
 
             // Вычисляем энергию нового состояния
             double nextEnergy = calculateEnergy(nextLayout, nextNodes, nextEdges, nextCorridors, maxRobotWidth);
-
-            // Добавляем поощрение за меньшее количество узлов (чтобы отжиг стремился удалять лишние)
-            if (deletedNode) {
-                 nextEnergy -= 1000;
-            }
-
             double dE = nextEnergy - currentEnergy;
 
             // Критерий Метрополиса:
