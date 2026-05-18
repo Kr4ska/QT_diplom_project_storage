@@ -73,6 +73,7 @@ struct PathEdge
         double angle = std::atan2(dy, dx) * 180.0 / M_PI;
 
         return {id,
+                QString(""), // empty modelId for corridors
                 (n1->x + n2->x) / 2.0,
                 (n1->y + n2->y) / 2.0,
                 length,
