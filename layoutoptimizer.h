@@ -1,0 +1,135 @@
+#ifndef LAYOUTOPTIMIZER_H
+#define LAYOUTOPTIMIZER_H
+
+#include <QObject>
+#include <QVector>
+#include <QPointF>
+#include <QString>
+#include <QVariantList>
+#include <QVariantMap>
+#include <cmath>
+
+class DatabaseManager; // Предварительное объявление
+
+// ---------------- СТРУКТУРЫ ДАННЫХ ----------------
+
+struct WarehouseObject
+{
+    int instanceId;
+    double x, y;
+    double w, l;
+    double angle;
+    QString type;
+    bool isStatic = false;
+
+    QVector<QPointF> getVertices() const
+    {
+        QVector<QPointF> v;
+        double rad = angle * M_PI / 180.0;
+        double cosA = std::cos(rad);
+        double sinA = std::sin(rad);
+
+        auto rotate = [&](double px, double py) {
+            return QPointF(x + px * cosA - py * sinA, y + px * sinA + py * cosA);
+        };
+
+        double hw = w / 2.0;
+        double hl = l / 2.0;
+
+        v << rotate(-hw, -hl) << rotate(hw, -hl) << rotate(hw, hl) << rotate(-hw, hl);
+        return v;
+    }
+};
+
+struct PathNode
+{
+    int id;
+    double x, y;
+};
+
+struct PathEdge
+{
+    int id;
+    int startNodeId;
+    int endNodeId;
+
+    WarehouseObject getCorridorOBB(const QVector<PathNode> &nodes, double robotWidth) const
+    {
+        const PathNode *n1 = nullptr;
+        const PathNode *n2 = nullptr;
+        for (const auto &n : nodes) {
+            if (n.id == startNodeId)
+                n1 = &n;
+            if (n.id == endNodeId)
+                n2 = &n;
+        }
+        if (!n1 || !n2)
+            return {};
+
+        double dx = n2->x - n1->x;
+        double dy = n2->y - n1->y;
+        double length = std::sqrt(dx * dx + dy * dy);
+        double angle = std::atan2(dy, dx) * 180.0 / M_PI;
+
+        return {id,
+                (n1->x + n2->x) / 2.0,
+                (n1->y + n2->y) / 2.0,
+                length,
+                robotWidth,
+                angle,
+                "corridor",
+                true};
+    }
+};
+
+struct WallConstraints
+{
+    double top, bottom, left, right;
+};
+
+// ---------------- КЛАСС ОПТИМИЗАТОРА ----------------
+
+class LayoutOptimizer : public QObject
+{
+    Q_OBJECT
+public:
+    explicit LayoutOptimizer(QObject *parent = nullptr);
+
+    // Установка статических данных (стены и пути)
+    void setEnvironment(const WallConstraints &walls,
+                        const QVector<PathNode> &nodes,
+                        const QVector<PathEdge> &edges);
+
+    // Подготовка (обогащение) данных из БД. ВАЖНО: вызывать в основном потоке!
+    void prepareLayout(const QVariantList &rawLayout, DatabaseManager *dbManager);
+
+public slots:
+    // Главный метод запуска отжига
+    void startOptimization(double maxRobotWidth);
+    void runAsyncOptimization(double maxRobotWidth);
+
+signals:
+    // Сигналы для общения с QML и основным потоком
+    void optimizationFinished(QVariantList updatedLayout);
+    void progressUpdated(int percent);
+
+private:
+    // Внутренние данные
+    QVector<WarehouseObject> m_layout;
+    QVector<PathNode> m_nodes;
+    QVector<PathEdge> m_edges;
+    WallConstraints m_walls;
+
+    // Математика SAT (Детектор столкновений)
+    QVector<QPointF> getAxes(const QVector<QPointF>& v) const;
+    void project(const QVector<QPointF>& v, const QPointF& axis, double& min, double& max) const;
+    bool isOverlapping(const WarehouseObject& a, const WarehouseObject& b) const;
+
+    // Расчет энергии
+    double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<WarehouseObject>& corridors) const;
+
+    // Сборка ответа для QML
+    QVariantList packLayoutToVariant() const;
+};
+
+#endif // LAYOUTOPTIMIZER_H
