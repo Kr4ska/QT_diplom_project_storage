@@ -16,7 +16,9 @@ qt_add_qml_module(appdiplom_project_storage
     URI diplom_project_storage
     QML_FILES
         Main.qml
-        SOURCES databasemanager.h databasemanager.cpp
+        SOURCES
+            databasemanager.h databasemanager.cpp
+            layoutoptimizer.h layoutoptimizer.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
