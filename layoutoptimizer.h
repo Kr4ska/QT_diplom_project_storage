@@ -18,6 +18,8 @@ struct WarehouseObject
     int instanceId;
     QString modelId;
     double x, y;
+    double initialX = 0, initialY = 0;
+    double initialAngle = 0;
     double w, l;
     double angle;
     QString type;
@@ -46,6 +48,8 @@ struct PathNode
 {
     int id;
     double x, y;
+    double initialX = 0, initialY = 0;
+    QString type; // "start", "path", etc.
 };
 
 struct PathEdge
@@ -72,15 +76,18 @@ struct PathEdge
         double length = std::sqrt(dx * dx + dy * dy);
         double angle = std::atan2(dy, dx) * 180.0 / M_PI;
 
-        return {id,
-                QString(""), // empty modelId for corridors
-                (n1->x + n2->x) / 2.0,
-                (n1->y + n2->y) / 2.0,
-                length,
-                robotWidth,
-                angle,
-                "corridor",
-                true};
+        WarehouseObject corridor;
+        corridor.instanceId = id;
+        corridor.modelId = "";
+        corridor.x = (n1->x + n2->x) / 2.0;
+        corridor.y = (n1->y + n2->y) / 2.0;
+        corridor.w = length;
+        corridor.l = robotWidth;
+        corridor.angle = angle;
+        corridor.type = "corridor";
+        corridor.isStatic = true;
+
+        return corridor;
     }
 };
 
@@ -112,7 +119,7 @@ public slots:
 
 signals:
     // Сигналы для общения с QML и основным потоком
-    void optimizationFinished(QVariantList updatedLayout);
+    void optimizationFinished(QVariantList updatedLayout, QVariantList updatedNodes);
     void progressUpdated(int percent);
 
 private:
@@ -129,10 +136,12 @@ private:
     double getOverlapDistance(const WarehouseObject& a, const WarehouseObject& b) const;
 
     // Расчет энергии
-    double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<WarehouseObject>& corridors) const;
+    double calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const;
+    double pointToSegmentDistance(double px, double py, double x1, double y1, double x2, double y2) const;
 
     // Сборка ответа для QML
     QVariantList packLayoutToVariant() const;
+    QVariantList packNodesToVariant() const;
 };
 
 #endif // LAYOUTOPTIMIZER_H

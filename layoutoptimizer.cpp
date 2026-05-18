@@ -21,6 +21,9 @@ void LayoutOptimizer::setEnvironment(const QVariantMap& walls, const QVariantLis
         n.id = nodeMap["NodeID"].toInt();
         n.x = nodeMap["NodeX"].toDouble();
         n.y = nodeMap["NodeY"].toDouble();
+        n.initialX = n.x;
+        n.initialY = n.y;
+        n.type = nodeMap["MarkerType"].toString();
         m_nodes.append(n);
     }
 
@@ -58,6 +61,9 @@ void LayoutOptimizer::prepareLayout(const QVariantList &rawLayout, QObject *dbMa
         obj.x = objMap["CoordX"].toDouble();
         obj.y = objMap["CoordY"].toDouble();
         obj.angle = objMap["AngleRotation"].toDouble();
+        obj.initialX = obj.x;
+        obj.initialY = obj.y;
+        obj.initialAngle = obj.angle;
         obj.type = objMap["Type"].toString();
 
         // Размеры из базы (с защитой от нулей)
@@ -140,7 +146,20 @@ double LayoutOptimizer::getOverlapDistance(const WarehouseObject& a, const Wareh
 
 // ---------------- РАСЧЕТ ЭНЕРГИИ ----------------
 
-double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<WarehouseObject>& corridors) const {
+double LayoutOptimizer::pointToSegmentDistance(double px, double py, double x1, double y1, double x2, double y2) const {
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    if (dx == 0 && dy == 0) {
+        return std::sqrt((px - x1)*(px - x1) + (py - y1)*(py - y1));
+    }
+    double t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+    t = std::max(0.0, std::min(1.0, t));
+    double closestX = x1 + t * dx;
+    double closestY = y1 + t * dy;
+    return std::sqrt((px - closestX)*(px - closestX) + (py - closestY)*(py - closestY));
+}
+
+double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, const QVector<PathNode>& nodes, const QVector<WarehouseObject>& corridors, double maxRobotWidth) const {
     double energy = 0.0;
 
     for (int i = 0; i < layout.size(); ++i) {
@@ -178,13 +197,57 @@ double LayoutOptimizer::calculateEnergy(const QVector<WarehouseObject>& layout, 
         }
 
         // 3. Коллизии с путями роботов (чтобы объекты не перекрывали коридоры)
+        // И проверка доступности пути (расстояние должно быть примерно равно maxRobotWidth/2)
+        double minDistanceToPath = std::numeric_limits<double>::max();
+        for (const auto& edge : m_edges) {
+            const PathNode* n1 = nullptr;
+            const PathNode* n2 = nullptr;
+            for (const auto& n : nodes) {
+                if (n.id == edge.startNodeId) n1 = &n;
+                if (n.id == edge.endNodeId) n2 = &n;
+            }
+            if (n1 && n2) {
+                double dist = pointToSegmentDistance(obj.x, obj.y, n1->x, n1->y, n2->x, n2->y);
+                if (dist < minDistanceToPath) {
+                    minDistanceToPath = dist;
+                }
+            }
+        }
+
         for (const auto& corridor : corridors) {
             double overlap = getOverlapDistance(obj, corridor);
             if (overlap > 0) {
                 energy += 8000 + overlap * 3000;
             }
         }
+
+        // Штраф, если путь слишком далеко или слишком близко от объекта
+        double targetDistance = std::max(obj.w, obj.l) / 2.0 + maxRobotWidth / 2.0;
+        if (minDistanceToPath > targetDistance + 1.0) {
+            energy += 200 * (minDistanceToPath - targetDistance); // Слишком далеко
+        }
+
+        // 4. Штраф за сильное отклонение от начальной позиции (сохраняем первоначальный замысел)
+        double devX = obj.x - obj.initialX;
+        double devY = obj.y - obj.initialY;
+        double deviation = std::sqrt(devX*devX + devY*devY);
+        if (deviation > 0.5) {
+            energy += deviation * 50; // Мягкий штраф за отклонение
+        }
     }
+
+    // 5. Штраф за отклонение узлов путей от их начальных позиций (кроме start)
+    for (const auto& node : nodes) {
+        if (node.type != "start") {
+            double devX = node.x - node.initialX;
+            double devY = node.y - node.initialY;
+            double deviation = std::sqrt(devX*devX + devY*devY);
+            if (deviation > 0.5) {
+                energy += deviation * 20; // Мягкий штраф
+            }
+        }
+    }
+
     return energy;
 }
 
@@ -208,15 +271,14 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
     }
 
     // 2. Параметры алгоритма имитации отжига (Simulated Annealing)
-    // T (Температура) определяет вероятность принятия ухудшающих решений.
-    // В начале (при высокой T) алгоритм "прыгает" по возможным состояниям, чтобы выйти из локальных минимумов.
-    double T_initial = 1000.0;
+    // T_initial снижена, чтобы алгоритм не разрушал изначальную расстановку полностью.
+    double T_initial = 200.0;
     double T = T_initial;
     double T_min = 0.1;
-    double alpha = 0.99; // Коэффициент охлаждения. Чем ближе к 1, тем медленнее и точнее поиск
-    int iterationsPerTemp = 100; // Количество мутаций на одной температурной ступени
+    double alpha = 0.99; // Коэффициент охлаждения
+    int iterationsPerTemp = 100;
 
-    double currentEnergy = calculateEnergy(m_layout, corridors);
+    double currentEnergy = calculateEnergy(m_layout, m_nodes, corridors, maxRobotWidth);
     double initialEnergy = currentEnergy;
 
     auto* rng = QRandomGenerator::global();
@@ -224,60 +286,56 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
     // Главный цикл охлаждения
     while (T > T_min) {
         for (int i = 0; i < iterationsPerTemp; ++i) {
-            if (m_layout.isEmpty()) break;
-
             QVector<WarehouseObject> nextLayout = m_layout;
+            QVector<PathNode> nextNodes = m_nodes;
 
-            // Выбираем случайный объект для мутации
-            int idx = rng->bounded(nextLayout.size());
-            if (nextLayout[idx].isStatic) continue;
+            // Выбираем, что мутируем: объект или узел пути (с вероятностью 20% мутируем узел)
+            bool mutateNode = (rng->bounded(100) < 20) && !nextNodes.isEmpty();
 
-            // Выбираем тип мутации с помощью случайного числа
-            int mutationType = rng->bounded(100);
-
-            if (mutationType < 5) {
-                // 5% вероятность: Радикальное перемещение в пределах склада
-                // Помогает, если объект "застрял" в плохом месте
-                nextLayout[idx].x = m_walls.left + rng->generateDouble() * (m_walls.right - m_walls.left);
-                nextLayout[idx].y = m_walls.top + rng->generateDouble() * (m_walls.bottom - m_walls.top);
-            } else if (mutationType < 15) {
-                // 10% вероятность: Произвольное вращение
-                // Позволяет объектам "втиснуться" в неудобные места
-                double angleShift = (rng->generateDouble() * 180.0) - 90.0; // от -90 до +90
-                nextLayout[idx].angle += angleShift;
-                if (nextLayout[idx].angle < 0.0) nextLayout[idx].angle += 360.0;
-                if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
-            } else if (mutationType < 25) {
-                // 10% вероятность: Вращение ровно на 90 градусов
-                // Для складов часто важны прямые углы
-                nextLayout[idx].angle += 90.0;
-                if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
-            } else if (mutationType < 30) {
-                // 5% вероятность: Обмен позициями двух объектов (swap)
-                // Помогает быстро переставить объекты местами без штрафов за их пересечение по пути
-                int idx2 = rng->bounded(nextLayout.size());
-                if (!nextLayout[idx2].isStatic && idx != idx2) {
-                    double tempX = nextLayout[idx].x;
-                    double tempY = nextLayout[idx].y;
-                    nextLayout[idx].x = nextLayout[idx2].x;
-                    nextLayout[idx].y = nextLayout[idx2].y;
-                    nextLayout[idx2].x = tempX;
-                    nextLayout[idx2].y = tempY;
+            if (mutateNode) {
+                int idx = rng->bounded(nextNodes.size());
+                if (nextNodes[idx].type != "start") {
+                    double shiftRange = std::max(0.1, 0.5 * (T / T_initial));
+                    nextNodes[idx].x += (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                    nextNodes[idx].y += (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
                 }
-            } else {
-                // 70% вероятность: Небольшой сдвиг (локальная оптимизация)
-                // Чем ниже температура, тем меньше должен быть максимальный сдвиг
-                double shiftRange = std::max(0.1, 1.0 * (T / T_initial)); // От 1.0 до 0.1 м
-                double shiftX = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
-                double shiftY = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
-                nextLayout[idx].x += shiftX;
-                nextLayout[idx].y += shiftY;
+            } else if (!nextLayout.isEmpty()) {
+                int idx = rng->bounded(nextLayout.size());
+                if (nextLayout[idx].isStatic) continue;
+
+                int mutationType = rng->bounded(100);
+
+                if (mutationType < 10) {
+                    // 10% Произвольное небольшое вращение (до 45 градусов)
+                    double angleShift = (rng->generateDouble() * 90.0) - 45.0;
+                    nextLayout[idx].angle += angleShift;
+                    if (nextLayout[idx].angle < 0.0) nextLayout[idx].angle += 360.0;
+                    if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
+                } else if (mutationType < 20) {
+                    // 10% Вращение ровно на 90 градусов (полезно для стеллажей)
+                    nextLayout[idx].angle += 90.0;
+                    if (nextLayout[idx].angle >= 360.0) nextLayout[idx].angle -= 360.0;
+                } else {
+                    // 80% Небольшой сдвиг
+                    double shiftRange = std::max(0.1, 0.5 * (T / T_initial)); // Максимум 0.5м сдвига
+                    double shiftX = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                    double shiftY = (rng->generateDouble() * 2.0 * shiftRange) - shiftRange;
+                    nextLayout[idx].x += shiftX;
+                    nextLayout[idx].y += shiftY;
+                }
+            }
+
+            // При мутации узлов нужно перестроить коридоры
+            QVector<WarehouseObject> nextCorridors = corridors;
+            if (mutateNode) {
+                nextCorridors.clear();
+                for (const auto& edge : m_edges) {
+                    nextCorridors << edge.getCorridorOBB(nextNodes, maxRobotWidth);
+                }
             }
 
             // Вычисляем энергию нового состояния
-            double nextEnergy = calculateEnergy(nextLayout, corridors);
-
-            // Разница энергий (dE). Если dE < 0, значит новое состояние лучше (энергия упала).
+            double nextEnergy = calculateEnergy(nextLayout, nextNodes, nextCorridors, maxRobotWidth);
             double dE = nextEnergy - currentEnergy;
 
             // Критерий Метрополиса:
@@ -286,6 +344,10 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
             //    которая зависит от температуры T. При высокой T вероятность велика.
             if (dE < 0 || (std::exp(-dE / T) > rng->generateDouble())) {
                 m_layout = nextLayout;
+                m_nodes = nextNodes;
+                if (mutateNode) {
+                    corridors = nextCorridors;
+                }
                 currentEnergy = nextEnergy;
             }
         }
@@ -304,7 +366,7 @@ void LayoutOptimizer::startOptimization(double maxRobotWidth) {
     qDebug() << "🏁 Optimization finished. Energy dropped from" << initialEnergy << "to" << currentEnergy;
 
     // 3. Отправляем результат обратно в QML
-    emit optimizationFinished(packLayoutToVariant());
+    emit optimizationFinished(packLayoutToVariant(), packNodesToVariant());
 }
 
 // ---------------- УПАКОВКА ОБРАТНО В JSON/QML ----------------
@@ -324,6 +386,19 @@ QVariantList LayoutOptimizer::packLayoutToVariant() const {
         map["Width"] = obj.w;
         map["Length"] = obj.l;
         map["Type"] = obj.type;
+        list.append(map);
+    }
+    return list;
+}
+
+QVariantList LayoutOptimizer::packNodesToVariant() const {
+    QVariantList list;
+    for (const auto& node : m_nodes) {
+        QVariantMap map;
+        map["NodeID"] = node.id;
+        map["NodeX"] = node.x;
+        map["NodeY"] = node.y;
+        map["MarkerType"] = node.type;
         list.append(map);
     }
     return list;

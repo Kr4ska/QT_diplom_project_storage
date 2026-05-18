@@ -52,9 +52,10 @@ ApplicationWindow {
     LayoutOptimizer {
         id: optimizer
 
-        onOptimizationFinished: (updatedLayout) => {
+        onOptimizationFinished: (updatedLayout, updatedNodes) => {
             console.log("Оптимизация завершена!");
             mainRoot.lastGeneratedData.layout = updatedLayout;
+            mainRoot.lastGeneratedData.nodes = updatedNodes;
             mainCanvas.requestPaint();
             busyLoading.running = false;
             statusLabel.text = "Оптимизация завершена";
