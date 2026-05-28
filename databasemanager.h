@@ -20,6 +20,10 @@ public:
     // Сохранение проекта: Оборудование + Узлы + Ребра
     Q_INVOKABLE int createProjectWithFullData(const QString &title, double width, double height, const QVariantMap &allData);
 
+    Q_INVOKABLE QString getAllEquipmentCatalog();
+    Q_INVOKABLE QString readJsonFile(const QString &fileName);
+    Q_INVOKABLE bool writeJsonFile(const QString &fileName, const QString &jsonString);
+
 signals:
     // Тот самый сигнал, который ждет QML Connections
     void databaseConnected();

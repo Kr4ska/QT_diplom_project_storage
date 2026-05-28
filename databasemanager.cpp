@@ -6,6 +6,9 @@
 #include <QUrl>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QFile>
+#include <QTextStream>
+#include <QCoreApplication>
 
 DatabaseManager::DatabaseManager(QObject *parent) : QObject(parent) {}
 
@@ -51,6 +54,62 @@ QVariantMap DatabaseManager::getEquipmentInfo(const QString &modelId) {
         qDebug() << "Error fetching equipment info:" << query.lastError().text();
     }
     return result;
+}
+
+QString DatabaseManager::readJsonFile(const QString &fileName) {
+    // Ищем файл рядом с исполняемым файлом или в текущей рабочей директории
+    QString filePath = QCoreApplication::applicationDirPath() + "/" + fileName;
+    if (!QFile::exists(filePath)) {
+        filePath = QDir::currentPath() + "/" + fileName; // Фолбэк на рабочую директорию
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "❌ Failed to open JSON file for reading:" << filePath;
+        return "";
+    }
+    return QString(file.readAll());
+}
+
+bool DatabaseManager::writeJsonFile(const QString &fileName, const QString &jsonString) {
+    QString filePath = QCoreApplication::applicationDirPath() + "/" + fileName;
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qDebug() << "❌ Failed to open JSON file for writing:" << filePath;
+        return false;
+    }
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+    out << jsonString;
+    return true;
+}
+
+QString DatabaseManager::getAllEquipmentCatalog() {
+    if (!m_db.isOpen()) return "База данных не подключена.";
+
+    QSqlQuery query(m_db);
+    // Берем ID, Название (если есть, предполагаю Name или Title, использую Type как фолбэк если нет), и Габариты
+    // Здесь я использую ModelID, Type, DimWidth, DimLength. Если в БД есть поле названия, можно добавить его.
+    query.prepare("SELECT ModelID, Type, DimWidth, DimLength FROM Equipment_base");
+
+    if (!query.exec()) {
+        qDebug() << "Error fetching equipment catalog:" << query.lastError().text();
+        return "Ошибка при чтении каталога оборудования.";
+    }
+
+    QString catalog = "Каталог доступного оборудования:\n";
+    catalog += "---------------------------------\n";
+    while (query.next()) {
+        QString modelId = query.value("ModelID").toString();
+        QString type = query.value("Type").toString();
+        double w = query.value("DimWidth").toDouble();
+        double l = query.value("DimLength").toDouble();
+
+        catalog += QString("- ID: %1 | Тип: %2 | Габариты (ШxД): %3x%4 м\n")
+                    .arg(modelId).arg(type).arg(w).arg(l);
+    }
+    catalog += "---------------------------------\n";
+    return catalog;
 }
 
 bool DatabaseManager::connectToDatabase(const QString &dbPath) {
