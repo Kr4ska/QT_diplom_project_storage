@@ -35,12 +35,12 @@ ApplicationWindow {
     Material.theme: appTheme
     Material.accent: Material.Blue
 
-    readonly property color colorPanel: appTheme === Material.Dark ? "#1e1e1e" : "#f5f5f5"
-    readonly property color colorBorder: appTheme === Material.Dark ? "#333333" : "#e0e0e0"
-    readonly property color colorText: appTheme === Material.Dark ? "#e0e0e0" : "#333333"
-    readonly property color colorCanvasBg: appTheme === Material.Dark ? "#161616" : "#ffffff"
+    readonly property color colorPanel: appTheme === Material.Dark ? "#1e1e1e" : "#e8e8e8"
+    readonly property color colorBorder: appTheme === Material.Dark ? "#333333" : "#cccccc"
+    readonly property color colorText: appTheme === Material.Dark ? "#e0e0e0" : "#222222"
+    readonly property color colorCanvasBg: appTheme === Material.Dark ? "#161616" : "#f0f0f0"
     readonly property color colorGridLine: appTheme === Material.Dark ? "#ffffff" : "#000000"
-    readonly property color colorTextAreaBg: appTheme === Material.Dark ? "#252525" : "#ffffff"
+    readonly property color colorTextAreaBg: appTheme === Material.Dark ? "#252525" : "#fdfdfd"
 
     menuBar: MenuBar {
         Menu {
@@ -508,12 +508,13 @@ ApplicationWindow {
             }
             Canvas {
                 id: gridCanvas
-                anchors.fill: parent; opacity: appTheme === Material.Dark ? 0.15 : 0.15
+                anchors.fill: parent; opacity: appTheme === Material.Dark ? 0.15 : 0.25
                 onPaint: {
                     var ctx = getContext("2d"); ctx.clearRect(0, 0, width, height);
                     let s = mainRoot.canvasScale; let step = s * 5;
                     ctx.save(); ctx.translate(mainRoot.offsetX, mainRoot.offsetY);
-                    ctx.strokeStyle = colorGridLine; ctx.lineWidth = 1;
+                    ctx.strokeStyle = colorGridLine;
+                    ctx.lineWidth = appTheme === Material.Dark ? 1 : 1.5;
                     ctx.beginPath();
                     for (var x = -2000; x < 5000; x += step) { ctx.moveTo(x, -2000); ctx.lineTo(x, 5000); }
                     for (var y = -2000; y < 5000; y += step) { ctx.moveTo(-2000, y); ctx.lineTo(5000, y); }
