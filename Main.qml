@@ -120,35 +120,95 @@ ApplicationWindow {
                     onClicked: {
                         statusLabel.text = "Чтение из example.json...";
 
+                        let w = parseFloat(inputWidth.text) || 60;
+                        let h = parseFloat(inputLength.text) || 40;
                         let jsonString = dbManager.readJsonFile("example.json");
+
+                        let parsedData;
                         if (jsonString !== "") {
                             try {
-                                let parsedData = JSON.parse(jsonString);
-                                // Override walls dynamically if needed, or use the ones from JSON
-                                let w = parseFloat(inputWidth.text) || 60;
-                                let h = parseFloat(inputLength.text) || 40;
-
-                                if (!parsedData.walls) {
-                                    parsedData.walls = {
-                                        "left": 0.0, "top": 0.0,
-                                        "right": w, "bottom": h
-                                    };
-                                }
-
-                                mainRoot.lastGeneratedData = parsedData;
-
-                                mainRoot.selectedType = "none";
-                                mainRoot.selectedId = -1;
-                                statusLabel.text = "Готово. Данные загружены из example.json.";
-                                btnSaveToDB.enabled = true;
-                                mainCanvas.requestPaint();
-                                gridCanvas.requestPaint();
+                                parsedData = JSON.parse(jsonString);
                             } catch (e) {
-                                statusLabel.text = "Ошибка парсинга JSON: " + e.toString();
+                                console.log("JSON Parse Error: " + e.toString());
                             }
-                        } else {
-                            statusLabel.text = "Ошибка чтения example.json";
                         }
+
+                        // Если файл не прочитался или не распарсился, используем хардкод
+                        if (!parsedData) {
+                            parsedData = {
+                            "layout": [
+                              { "InstanceID": 1, "ModelID": "m_cut_laser_pro", "Type": "machine", "Width": 4.5, "Length": 2.2, "Height": 2.0, "CoordX": 10.0, "CoordY": 5.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 2, "ModelID": "f_mill_5ax", "Type": "machine", "Width": 3.5, "Length": 2.8, "Height": 3.0, "CoordX": 10.0, "CoordY": 15.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 3, "ModelID": "sasta_ca6140", "Type": "machine", "Width": 2.8, "Length": 1.4, "Height": 1.6, "CoordX": 10.0, "CoordY": 25.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 4, "ModelID": "rusdrill_compact", "Type": "machine", "Width": 1.2, "Length": 1.0, "Height": 1.8, "CoordX": 15.0, "CoordY": 25.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 5, "ModelID": "bit_robotics_arm", "Type": "robot", "Width": 0.8, "Length": 0.8, "Height": 1.5, "CoordX": 14.0, "CoordY": 15.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 6, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 6.0, "AngleRotation": 90.0 },
+                              { "InstanceID": 7, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 10.0, "AngleRotation": 90.0 },
+                              { "InstanceID": 8, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 14.0, "AngleRotation": 90.0 },
+                              { "InstanceID": 9, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 18.0, "AngleRotation": 90.0 },
+                              { "InstanceID": 10, "ModelID": "shelving_r30_light", "Type": "rack", "Width": 1.0, "Length": 0.6, "Height": 2.2, "CoordX": 45.0, "CoordY": 6.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 11, "ModelID": "shelving_r30_light", "Type": "rack", "Width": 1.0, "Length": 0.6, "Height": 2.2, "CoordX": 45.0, "CoordY": 10.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 12, "ModelID": "st_cons_rack", "Type": "rack", "Width": 4.0, "Length": 1.5, "Height": 3.5, "CoordX": 42.0, "CoordY": 25.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 13, "ModelID": "robotech_agv_500", "Type": "robot", "Width": 1.2, "Length": 0.8, "Height": 0.4, "CoordX": 25.0, "CoordY": 2.0, "AngleRotation": 0.0 },
+                              { "InstanceID": 14, "ModelID": "robotech_agv_500", "Type": "robot", "Width": 1.2, "Length": 0.8, "Height": 0.4, "CoordX": 25.0, "CoordY": 28.0, "AngleRotation": 0.0 }
+                            ],
+                            "nodes": [
+                              { "NodeID": 0, "NodeX": 25.0, "NodeY": 2.0, "MarkerType": "start" },
+                              { "NodeID": 1, "NodeX": 25.0, "NodeY": 6.0, "MarkerType": "path" },
+                              { "NodeID": 2, "NodeX": 25.0, "NodeY": 15.0, "MarkerType": "path" },
+                              { "NodeID": 3, "NodeX": 25.0, "NodeY": 25.0, "MarkerType": "path" },
+                              { "NodeID": 4, "NodeX": 25.0, "NodeY": 28.0, "MarkerType": "path" },
+                              { "NodeID": 5, "NodeX": 18.0, "NodeY": 5.0, "MarkerType": "path" },
+                              { "NodeID": 6, "NodeX": 18.0, "NodeY": 15.0, "MarkerType": "path" },
+                              { "NodeID": 7, "NodeX": 18.0, "NodeY": 25.0, "MarkerType": "path" },
+                              { "NodeID": 8, "NodeX": 33.0, "NodeY": 4.0, "MarkerType": "path" },
+                              { "NodeID": 9, "NodeX": 33.0, "NodeY": 8.0, "MarkerType": "path" },
+                              { "NodeID": 10, "NodeX": 33.0, "NodeY": 12.0, "MarkerType": "path" },
+                              { "NodeID": 11, "NodeX": 33.0, "NodeY": 16.0, "MarkerType": "path" },
+                              { "NodeID": 12, "NodeX": 40.0, "NodeY": 4.0, "MarkerType": "path" },
+                              { "NodeID": 13, "NodeX": 40.0, "NodeY": 8.0, "MarkerType": "path" },
+                              { "NodeID": 14, "NodeX": 40.0, "NodeY": 25.0, "MarkerType": "path" },
+                                { "NodeID": 15, "NodeX": 42.0, "NodeY": 6.0, "MarkerType": "path" },
+                                { "NodeID": 16, "NodeX": 42.0, "NodeY": 10.0, "MarkerType": "path" }
+                            ],
+                            "edges": [
+                                { "EdgeID": 0, "StartNodeID": 0, "EndNodeID": 1, "TwoWayTraffic": true },
+                                { "EdgeID": 1, "StartNodeID": 1, "EndNodeID": 2, "TwoWayTraffic": true },
+                                { "EdgeID": 2, "StartNodeID": 2, "EndNodeID": 3, "TwoWayTraffic": true },
+                                { "EdgeID": 3, "StartNodeID": 3, "EndNodeID": 4, "TwoWayTraffic": true },
+                                { "EdgeID": 4, "StartNodeID": 1, "EndNodeID": 5, "TwoWayTraffic": true },
+                                { "EdgeID": 5, "StartNodeID": 2, "EndNodeID": 6, "TwoWayTraffic": true },
+                                { "EdgeID": 6, "StartNodeID": 3, "EndNodeID": 7, "TwoWayTraffic": true },
+                                { "EdgeID": 7, "StartNodeID": 1, "EndNodeID": 8, "TwoWayTraffic": true },
+                                { "EdgeID": 8, "StartNodeID": 8, "EndNodeID": 9, "TwoWayTraffic": true },
+                                { "EdgeID": 9, "StartNodeID": 9, "EndNodeID": 10, "TwoWayTraffic": true },
+                                { "EdgeID": 10, "StartNodeID": 10, "EndNodeID": 11, "TwoWayTraffic": true },
+                                { "EdgeID": 11, "StartNodeID": 8, "EndNodeID": 12, "TwoWayTraffic": true },
+                                { "EdgeID": 12, "StartNodeID": 9, "EndNodeID": 13, "TwoWayTraffic": true },
+                                { "EdgeID": 13, "StartNodeID": 12, "EndNodeID": 15, "TwoWayTraffic": true },
+                                { "EdgeID": 14, "StartNodeID": 13, "EndNodeID": 16, "TwoWayTraffic": true },
+                                { "EdgeID": 15, "StartNodeID": 3, "EndNodeID": 14, "TwoWayTraffic": true }
+                            ]
+                            };
+                            // Сразу создаем файл, чтобы в следующий раз он был
+                            dbManager.writeJsonFile("example.json", JSON.stringify(parsedData, null, 2));
+                        }
+
+                        if (!parsedData.walls) {
+                            parsedData.walls = {
+                                "left": 0.0, "top": 0.0,
+                                "right": w, "bottom": h
+                            };
+                        }
+
+                        mainRoot.lastGeneratedData = parsedData;
+
+                        mainRoot.selectedType = "none";
+                        mainRoot.selectedId = -1;
+                        statusLabel.text = "Готово. Данные загружены.";
+                        btnSaveToDB.enabled = true;
+                        mainCanvas.requestPaint();
+                        gridCanvas.requestPaint();
                     }
                 }
 

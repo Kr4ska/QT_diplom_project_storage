@@ -88,9 +88,9 @@ QString DatabaseManager::getAllEquipmentCatalog() {
     if (!m_db.isOpen()) return "База данных не подключена.";
 
     QSqlQuery query(m_db);
-    // Берем ID, Название (если есть, предполагаю Name или Title, использую Type как фолбэк если нет), и Габариты
-    // Здесь я использую ModelID, Type, DimWidth, DimLength. Если в БД есть поле названия, можно добавить его.
-    query.prepare("SELECT ModelID, Type, DimWidth, DimLength FROM Equipment_base");
+    // Исключили Type из запроса, так как его скорее всего нет в таблице Equipment_base
+    // Используем только те поля, которые 100% есть судя по методу getEquipmentInfo
+    query.prepare("SELECT ModelID, DimWidth, DimLength FROM Equipment_base");
 
     if (!query.exec()) {
         qDebug() << "Error fetching equipment catalog:" << query.lastError().text();
@@ -101,12 +101,11 @@ QString DatabaseManager::getAllEquipmentCatalog() {
     catalog += "---------------------------------\n";
     while (query.next()) {
         QString modelId = query.value("ModelID").toString();
-        QString type = query.value("Type").toString();
         double w = query.value("DimWidth").toDouble();
         double l = query.value("DimLength").toDouble();
 
-        catalog += QString("- ID: %1 | Тип: %2 | Габариты (ШxД): %3x%4 м\n")
-                    .arg(modelId).arg(type).arg(w).arg(l);
+        catalog += QString("- ID: %1 | Габариты (ШxД): %2x%3 м\n")
+                    .arg(modelId).arg(w).arg(l);
     }
     catalog += "---------------------------------\n";
     return catalog;
