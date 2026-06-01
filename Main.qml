@@ -29,12 +29,18 @@ ApplicationWindow {
     property bool isDragging: false
     property bool isRotating: false
 
-    Material.theme: Material.Dark
+    // Тема
+    property int appTheme: Material.Dark
+
+    Material.theme: appTheme
     Material.accent: Material.Blue
 
-    readonly property color colorPanel: "#1e1e1e"
-    readonly property color colorBorder: "#333333"
-    readonly property color colorText: "#e0e0e0"
+    readonly property color colorPanel: appTheme === Material.Dark ? "#1e1e1e" : "#f5f5f5"
+    readonly property color colorBorder: appTheme === Material.Dark ? "#333333" : "#e0e0e0"
+    readonly property color colorText: appTheme === Material.Dark ? "#e0e0e0" : "#333333"
+    readonly property color colorCanvasBg: appTheme === Material.Dark ? "#161616" : "#ffffff"
+    readonly property color colorGridLine: appTheme === Material.Dark ? "#ffffff" : "#000000"
+    readonly property color colorTextAreaBg: appTheme === Material.Dark ? "#252525" : "#ffffff"
 
     menuBar: MenuBar {
         Menu {
@@ -44,6 +50,8 @@ ApplicationWindow {
         }
         Menu {
             title: "Настройки"
+            MenuItem { text: "Светлая тема"; checkable: true; checked: appTheme === Material.Light; onTriggered: appTheme = checked ? Material.Light : Material.Dark }
+            MenuSeparator {}
             MenuItem { text: "Системный промпт"; onTriggered: promptDialog.open() }
             MenuItem { text: "Параметры ИИ"; onTriggered: aiSettingsDialog.open() }
         }
@@ -93,8 +101,12 @@ ApplicationWindow {
 
                 Label { text: "Конфигурация"; font.bold: true; font.pixelSize: 18; color: Material.accent }
 
-                TextField { id: inputWidth; placeholderText: "Ширина (м)"; text: "60"; Layout.fillWidth: true }
-                TextField { id: inputLength; placeholderText: "Длина (м)"; text: "40"; Layout.fillWidth: true }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    TextField { id: inputWidth; placeholderText: "Ширина (м)"; text: "60"; Layout.fillWidth: true; leftPadding: 10; rightPadding: 10 }
+                    TextField { id: inputLength; placeholderText: "Длина (м)"; text: "40"; Layout.fillWidth: true; leftPadding: 10; rightPadding: 10 }
+                }
 
                 TextField {
                     id: inputScale
@@ -110,7 +122,16 @@ ApplicationWindow {
                 }
 
                 Label { text: "Инструкции:"; color: colorText }
-                ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: rulesArea; wrapMode: TextArea.Wrap; background: Rectangle { color: "#252525"; border.color: colorBorder } } }
+                ScrollView {
+                    Layout.fillWidth: true;
+                    Layout.fillHeight: true;
+                    TextArea {
+                        id: rulesArea;
+                        wrapMode: TextArea.Wrap;
+                        leftPadding: 10; rightPadding: 10; topPadding: 10; bottomPadding: 10
+                        background: Rectangle { color: colorTextAreaBg; border.color: colorBorder }
+                    }
+                }
 
                 Button {
                     text: isDbConnected ? "СГЕНЕРИРОВАТЬ" : "БД НЕ ПОДКЛЮЧЕНА"
@@ -282,7 +303,7 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: "#161616"
+            color: colorCanvasBg
             clip: true
 
             MouseArea {
@@ -473,12 +494,12 @@ ApplicationWindow {
             }
             Canvas {
                 id: gridCanvas
-                anchors.fill: parent; opacity: 0.15
+                anchors.fill: parent; opacity: appTheme === Material.Dark ? 0.15 : 0.05
                 onPaint: {
                     var ctx = getContext("2d"); ctx.clearRect(0, 0, width, height);
                     let s = mainRoot.canvasScale; let step = s * 5;
                     ctx.save(); ctx.translate(mainRoot.offsetX, mainRoot.offsetY);
-                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1;
+                    ctx.strokeStyle = colorGridLine; ctx.lineWidth = 1;
                     ctx.beginPath();
                     for (var x = -2000; x < 5000; x += step) { ctx.moveTo(x, -2000); ctx.lineTo(x, 5000); }
                     for (var y = -2000; y < 5000; y += step) { ctx.moveTo(-2000, y); ctx.lineTo(5000, y); }
@@ -717,7 +738,7 @@ ApplicationWindow {
         }
     }
 
-    Dialog { id: promptDialog; title: "Настройка системного промпта"; width: 600; height: 450; modal: true; anchors.centerIn: parent; standardButtons: Dialog.Ok; ColumnLayout { anchors.fill: parent; spacing: 10; CheckBox { id: editSwitch; text: "Разрешить редактирование"; checked: false } ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: systemPromptArea; text: "Ты — инженер-проектировщик. Твоя задача — рассчитать координаты оборудования склада..."; readOnly: !editSwitch.checked; wrapMode: TextArea.Wrap; font.family: "Monospace"; background: Rectangle { color: systemPromptArea.readOnly ? "#1a1a1a" : "#252525"; border.color: colorBorder } } } } }
+    Dialog { id: promptDialog; title: "Настройка системного промпта"; width: 600; height: 450; modal: true; anchors.centerIn: parent; standardButtons: Dialog.Ok; ColumnLayout { anchors.fill: parent; spacing: 10; CheckBox { id: editSwitch; text: "Разрешить редактирование"; checked: false } ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: systemPromptArea; text: "Ты — инженер-проектировщик. Твоя задача — рассчитать координаты оборудования склада..."; readOnly: !editSwitch.checked; wrapMode: TextArea.Wrap; font.family: "Monospace"; leftPadding: 10; rightPadding: 10; topPadding: 10; bottomPadding: 10; background: Rectangle { color: systemPromptArea.readOnly ? (appTheme === Material.Dark ? "#1a1a1a" : "#f5f5f5") : colorTextAreaBg; border.color: colorBorder } } } } }
 
     Dialog { id: aiSettingsDialog; title: "Параметры соединения с Yandex Cloud"; width: 500; height: Math.min(600, mainRoot.height * 0.9); modal: true; anchors.centerIn: parent; standardButtons: Dialog.Save | Dialog.Cancel; ScrollView { anchors.fill: parent; clip: true; ScrollBar.vertical.policy: ScrollBar.AsNeeded; ColumnLayout { width: parent.width - 20; spacing: 15; Label { text: "Авторизация"; font.bold: true; font.pixelSize: 16; color: Material.accent } TextField { id: apiKeyField; placeholderText: "API Key / OAuth Token"; echoMode: TextInput.Password; Layout.fillWidth: true } TextField { id: folderIdField; placeholderText: "Folder ID"; Layout.fillWidth: true } Rectangle { Layout.fillWidth: true; height: 1; color: colorBorder; Layout.topMargin: 5; Layout.bottomMargin: 5 } Label { text: "Настройки модели"; font.bold: true; font.pixelSize: 16; color: Material.accent } ComboBox { id: modelSelector; model: ["YandexGPT Pro", "YandexGPT Lite"]; Layout.fillWidth: true } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Плотность размещения:"; color: colorText } Item { Layout.fillWidth: true } Label { text: (densitySlider.value * 100).toFixed(0) + "%"; color: Material.accent } } Slider { id: densitySlider; from: 0.1; to: 1.0; value: 0.7; Layout.fillWidth: true } } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Температура (вариативность):"; color: colorText } Item { Layout.fillWidth: true } Label { text: tempSlider.value.toFixed(1); color: Material.accent } } Slider { id: tempSlider; from: 0; to: 1; value: 0.6; Layout.fillWidth: true } } Item { Layout.preferredHeight: 20 } } } }
 
@@ -738,7 +759,8 @@ ApplicationWindow {
                 readOnly: true
                 wrapMode: TextArea.Wrap
                 font.family: "Monospace"
-                background: Rectangle { color: "#1a1a1a"; border.color: colorBorder }
+                leftPadding: 10; rightPadding: 10; topPadding: 10; bottomPadding: 10
+                background: Rectangle { color: appTheme === Material.Dark ? "#1a1a1a" : "#f5f5f5"; border.color: colorBorder }
             }
         }
     }
