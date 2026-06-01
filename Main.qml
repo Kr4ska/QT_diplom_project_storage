@@ -133,13 +133,19 @@ ApplicationWindow {
                     }
                 }
 
-                Button {
-                    text: isDbConnected ? "СГЕНЕРИРОВАТЬ" : "БД НЕ ПОДКЛЮЧЕНА"
+                ColumnLayout {
                     Layout.fillWidth: true
-                    highlighted: true
-                    enabled: isDbConnected
-                    onClicked: {
-                        statusLabel.text = "Чтение из example.json...";
+                    spacing: 5
+
+                    Button {
+                        text: isDbConnected ? "СГЕНЕРИРОВАТЬ" : "БД НЕ ПОДКЛЮЧЕНА"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 35
+                        font.pixelSize: 12
+                        highlighted: true
+                        enabled: isDbConnected
+                        onClicked: {
+                            statusLabel.text = "Чтение из example.json...";
 
                         let w = parseFloat(inputWidth.text) || 60;
                         let h = parseFloat(inputLength.text) || 40;
@@ -228,17 +234,19 @@ ApplicationWindow {
                         mainRoot.selectedId = -1;
                         statusLabel.text = "Готово. Данные загружены.";
                         btnSaveToDB.enabled = true;
-                        mainCanvas.requestPaint();
-                        gridCanvas.requestPaint();
+                            mainCanvas.requestPaint();
+                            gridCanvas.requestPaint();
+                        }
                     }
-                }
 
-                Button {
-                    id: btnOptimize
-                    text: "ОПТИМИЗИРОВАТЬ ОТЖИГОМ"
-                    Layout.fillWidth: true
-                    enabled: isDbConnected && mainRoot.lastGeneratedData.layout.length > 0 && !busyLoading.running
-                    onClicked: {
+                    Button {
+                        id: btnOptimize
+                        text: "ОПТИМИЗИРОВАТЬ ОТЖИГОМ"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 35
+                        font.pixelSize: 12
+                        enabled: isDbConnected && mainRoot.lastGeneratedData.layout.length > 0 && !busyLoading.running
+                        onClicked: {
                         busyLoading.running = true;
                         progressBar.visible = true;
                         progressBar.value = 0;
@@ -250,32 +258,37 @@ ApplicationWindow {
                             mainRoot.lastGeneratedData.edges
                         );
 
-                        optimizer.prepareLayout(mainRoot.lastGeneratedData.layout, dbManager);
-                        optimizer.runAsyncOptimization(1.2);
+                            optimizer.prepareLayout(mainRoot.lastGeneratedData.layout, dbManager);
+                            optimizer.runAsyncOptimization(1.2);
+                        }
                     }
-                }
 
-                Button {
-                    id: btnSaveToDB
-                    text: "ЗАПИСАТЬ В БД"
-                    Layout.fillWidth: true; enabled: false
-                    onClicked: {
+                    Button {
+                        id: btnSaveToDB
+                        text: "ЗАПИСАТЬ В БД"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 35
+                        font.pixelSize: 12
+                        enabled: false
+                        onClicked: {
                         // При сохранении берем актуальную ширину/длину из стен
                         let wls = mainRoot.lastGeneratedData.walls;
                         let actualW = wls.right - wls.left;
                         let actualH = wls.bottom - wls.top;
-                        let res = dbManager.createProjectWithFullData("Проект " + Qt.formatDateTime(new Date(), "hh:mm"),
-                                  actualW, actualH, mainRoot.lastGeneratedData);
-                        statusLabel.text = (res !== -1) ? "✅ ID: " + res : "❌ Ошибка БД";
+                            let res = dbManager.createProjectWithFullData("Проект " + Qt.formatDateTime(new Date(), "hh:mm"),
+                                      actualW, actualH, mainRoot.lastGeneratedData);
+                            statusLabel.text = (res !== -1) ? "✅ ID: " + res : "❌ Ошибка БД";
+                        }
                     }
-                }
 
-                Button {
-                    id: btnShowPrompt
-                    text: "ПОКАЗАТЬ ПРОМПТ"
-                    Layout.fillWidth: true
-                    enabled: isDbConnected
-                    onClicked: {
+                    Button {
+                        id: btnShowPrompt
+                        text: "ПОКАЗАТЬ ПРОМПТ"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 35
+                        font.pixelSize: 12
+                        enabled: isDbConnected
+                        onClicked: {
                         let role = systemPromptArea.text;
                         let rules = rulesArea.text;
                         let w = inputWidth.text;
@@ -292,8 +305,9 @@ ApplicationWindow {
                         fullPrompt += "\n=== ДОСТУПНОЕ ОБОРУДОВАНИЕ ===\n";
                         fullPrompt += catalog;
 
-                        generatedPromptArea.text = fullPrompt;
-                        showPromptDialog.open();
+                            generatedPromptArea.text = fullPrompt;
+                            showPromptDialog.open();
+                        }
                     }
                 }
             }
@@ -494,7 +508,7 @@ ApplicationWindow {
             }
             Canvas {
                 id: gridCanvas
-                anchors.fill: parent; opacity: appTheme === Material.Dark ? 0.15 : 0.05
+                anchors.fill: parent; opacity: appTheme === Material.Dark ? 0.15 : 0.15
                 onPaint: {
                     var ctx = getContext("2d"); ctx.clearRect(0, 0, width, height);
                     let s = mainRoot.canvasScale; let step = s * 5;
