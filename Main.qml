@@ -46,6 +46,7 @@ ApplicationWindow {
         Menu {
             title: "Файл"
             MenuItem { text: "Открыть базу данных..."; onTriggered: dbFileDialog.open() }
+            MenuItem { text: "Открыть файл компоновки (JSON)..."; onTriggered: layoutFileDialog.open() }
             MenuItem { text: "Выход"; onTriggered: Qt.quit() }
         }
         Menu {
@@ -145,97 +146,125 @@ ApplicationWindow {
                         highlighted: true
                         enabled: isDbConnected
                         onClicked: {
-                            statusLabel.text = "Чтение из example.json...";
+                            if (mockModeSwitch.checked) {
+                                statusLabel.text = "Чтение из example.json...";
 
-                        let w = parseFloat(inputWidth.text) || 60;
-                        let h = parseFloat(inputLength.text) || 40;
-                        let jsonString = dbManager.readJsonFile("example.json");
+                                let w = parseFloat(inputWidth.text) || 60;
+                                let h = parseFloat(inputLength.text) || 40;
+                                let jsonString = dbManager.readJsonFile("example.json");
 
-                        let parsedData;
-                        if (jsonString !== "") {
-                            try {
-                                parsedData = JSON.parse(jsonString);
-                            } catch (e) {
-                                console.log("JSON Parse Error: " + e.toString());
+                                let parsedData;
+                                if (jsonString !== "") {
+                                    try {
+                                        parsedData = JSON.parse(jsonString);
+                                    } catch (e) {
+                                        console.log("JSON Parse Error: " + e.toString());
+                                    }
+                                }
+
+                                // Если файл не прочитался или не распарсился, используем хардкод
+                                if (!parsedData) {
+                                    parsedData = {
+                                    "layout": [
+                                      { "InstanceID": 1, "ModelID": "m_cut_laser_pro", "Type": "machine", "Width": 4.5, "Length": 2.2, "Height": 2.0, "CoordX": 10.0, "CoordY": 5.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 2, "ModelID": "f_mill_5ax", "Type": "machine", "Width": 3.5, "Length": 2.8, "Height": 3.0, "CoordX": 10.0, "CoordY": 15.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 3, "ModelID": "sasta_ca6140", "Type": "machine", "Width": 2.8, "Length": 1.4, "Height": 1.6, "CoordX": 10.0, "CoordY": 25.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 4, "ModelID": "rusdrill_compact", "Type": "machine", "Width": 1.2, "Length": 1.0, "Height": 1.8, "CoordX": 15.0, "CoordY": 25.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 5, "ModelID": "bit_robotics_arm", "Type": "robot", "Width": 0.8, "Length": 0.8, "Height": 1.5, "CoordX": 14.0, "CoordY": 15.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 6, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 6.0, "AngleRotation": 90.0 },
+                                      { "InstanceID": 7, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 10.0, "AngleRotation": 90.0 },
+                                      { "InstanceID": 8, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 14.0, "AngleRotation": 90.0 },
+                                      { "InstanceID": 9, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 18.0, "AngleRotation": 90.0 },
+                                      { "InstanceID": 10, "ModelID": "shelving_r30_light", "Type": "rack", "Width": 1.0, "Length": 0.6, "Height": 2.2, "CoordX": 45.0, "CoordY": 6.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 11, "ModelID": "shelving_r30_light", "Type": "rack", "Width": 1.0, "Length": 0.6, "Height": 2.2, "CoordX": 45.0, "CoordY": 10.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 12, "ModelID": "st_cons_rack", "Type": "rack", "Width": 4.0, "Length": 1.5, "Height": 3.5, "CoordX": 42.0, "CoordY": 25.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 13, "ModelID": "robotech_agv_500", "Type": "robot", "Width": 1.2, "Length": 0.8, "Height": 0.4, "CoordX": 25.0, "CoordY": 2.0, "AngleRotation": 0.0 },
+                                      { "InstanceID": 14, "ModelID": "robotech_agv_500", "Type": "robot", "Width": 1.2, "Length": 0.8, "Height": 0.4, "CoordX": 25.0, "CoordY": 28.0, "AngleRotation": 0.0 }
+                                    ],
+                                    "nodes": [
+                                      { "NodeID": 0, "NodeX": 25.0, "NodeY": 2.0, "MarkerType": "start" },
+                                      { "NodeID": 1, "NodeX": 25.0, "NodeY": 6.0, "MarkerType": "path" },
+                                      { "NodeID": 2, "NodeX": 25.0, "NodeY": 15.0, "MarkerType": "path" },
+                                      { "NodeID": 3, "NodeX": 25.0, "NodeY": 25.0, "MarkerType": "path" },
+                                      { "NodeID": 4, "NodeX": 25.0, "NodeY": 28.0, "MarkerType": "path" },
+                                      { "NodeID": 5, "NodeX": 18.0, "NodeY": 5.0, "MarkerType": "path" },
+                                      { "NodeID": 6, "NodeX": 18.0, "NodeY": 15.0, "MarkerType": "path" },
+                                      { "NodeID": 7, "NodeX": 18.0, "NodeY": 25.0, "MarkerType": "path" },
+                                      { "NodeID": 8, "NodeX": 33.0, "NodeY": 4.0, "MarkerType": "path" },
+                                      { "NodeID": 9, "NodeX": 33.0, "NodeY": 8.0, "MarkerType": "path" },
+                                      { "NodeID": 10, "NodeX": 33.0, "NodeY": 12.0, "MarkerType": "path" },
+                                      { "NodeID": 11, "NodeX": 33.0, "NodeY": 16.0, "MarkerType": "path" },
+                                      { "NodeID": 12, "NodeX": 40.0, "NodeY": 4.0, "MarkerType": "path" },
+                                      { "NodeID": 13, "NodeX": 40.0, "NodeY": 8.0, "MarkerType": "path" },
+                                      { "NodeID": 14, "NodeX": 40.0, "NodeY": 25.0, "MarkerType": "path" },
+                                        { "NodeID": 15, "NodeX": 42.0, "NodeY": 6.0, "MarkerType": "path" },
+                                        { "NodeID": 16, "NodeX": 42.0, "NodeY": 10.0, "MarkerType": "path" }
+                                    ],
+                                    "edges": [
+                                        { "EdgeID": 0, "StartNodeID": 0, "EndNodeID": 1, "TwoWayTraffic": true },
+                                        { "EdgeID": 1, "StartNodeID": 1, "EndNodeID": 2, "TwoWayTraffic": true },
+                                        { "EdgeID": 2, "StartNodeID": 2, "EndNodeID": 3, "TwoWayTraffic": true },
+                                        { "EdgeID": 3, "StartNodeID": 3, "EndNodeID": 4, "TwoWayTraffic": true },
+                                        { "EdgeID": 4, "StartNodeID": 1, "EndNodeID": 5, "TwoWayTraffic": true },
+                                        { "EdgeID": 5, "StartNodeID": 2, "EndNodeID": 6, "TwoWayTraffic": true },
+                                        { "EdgeID": 6, "StartNodeID": 3, "EndNodeID": 7, "TwoWayTraffic": true },
+                                        { "EdgeID": 7, "StartNodeID": 1, "EndNodeID": 8, "TwoWayTraffic": true },
+                                        { "EdgeID": 8, "StartNodeID": 8, "EndNodeID": 9, "TwoWayTraffic": true },
+                                        { "EdgeID": 9, "StartNodeID": 9, "EndNodeID": 10, "TwoWayTraffic": true },
+                                        { "EdgeID": 10, "StartNodeID": 10, "EndNodeID": 11, "TwoWayTraffic": true },
+                                        { "EdgeID": 11, "StartNodeID": 8, "EndNodeID": 12, "TwoWayTraffic": true },
+                                        { "EdgeID": 12, "StartNodeID": 9, "EndNodeID": 13, "TwoWayTraffic": true },
+                                        { "EdgeID": 13, "StartNodeID": 12, "EndNodeID": 15, "TwoWayTraffic": true },
+                                        { "EdgeID": 14, "StartNodeID": 13, "EndNodeID": 16, "TwoWayTraffic": true },
+                                        { "EdgeID": 15, "StartNodeID": 3, "EndNodeID": 14, "TwoWayTraffic": true }
+                                    ]
+                                    };
+                                    // Сразу создаем файл, чтобы в следующий раз он был
+                                    dbManager.writeJsonFile("example.json", JSON.stringify(parsedData, null, 2));
+                                }
+
+                                if (!parsedData.walls) {
+                                    parsedData.walls = {
+                                        "left": 0.0, "top": 0.0,
+                                        "right": w, "bottom": h
+                                    };
+                                }
+
+                                mainRoot.lastGeneratedData = parsedData;
+
+                                mainRoot.selectedType = "none";
+                                mainRoot.selectedId = -1;
+                                statusLabel.text = "Готово. Данные загружены.";
+                                btnSaveToDB.enabled = true;
+                                mainCanvas.requestPaint();
+                                gridCanvas.requestPaint();
+                            } else {
+                                // Режим отправки реального запроса к API
+                                statusLabel.text = "Генерация ответа от YandexGPT...";
+                                busyLoading.running = true;
+
+                                let role = systemPromptArea.text;
+                                let rules = rulesArea.text;
+                                let w = inputWidth.text;
+                                let h = inputLength.text;
+                                let catalog = dbManager.getAllEquipmentCatalog();
+
+                                let fullPrompt = "Ты — инженер-проектировщик. Твоя задача — рассчитать координаты.\n\n" + role + "\n\n";
+                                fullPrompt += "Ширина помещения: " + w + " м\n";
+                                fullPrompt += "Длина помещения: " + h + " м\n";
+                                if (rules !== "") {
+                                    fullPrompt += "Инструкции: " + rules + "\n";
+                                }
+                                fullPrompt += "\nДОСТУПНОЕ ОБОРУДОВАНИЕ:\n" + catalog + "\n";
+                                fullPrompt += "ВЕРНИ ТОЛЬКО СТРОГИЙ JSON БЕЗ МАРКДАУНА.";
+
+                                let apiKey = apiKeyField.text;
+                                let folderId = folderIdField.text;
+                                let modelUri = "gpt://" + folderId + "/" + (modelSelector.currentIndex === 0 ? "yandexgpt" : "yandexgpt-lite");
+                                let temp = tempSlider.value;
+
+                                apiManager.sendRequest(fullPrompt, apiKey, folderId, modelUri, temp);
                             }
-                        }
-
-                        // Если файл не прочитался или не распарсился, используем хардкод
-                        if (!parsedData) {
-                            parsedData = {
-                            "layout": [
-                              { "InstanceID": 1, "ModelID": "m_cut_laser_pro", "Type": "machine", "Width": 4.5, "Length": 2.2, "Height": 2.0, "CoordX": 10.0, "CoordY": 5.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 2, "ModelID": "f_mill_5ax", "Type": "machine", "Width": 3.5, "Length": 2.8, "Height": 3.0, "CoordX": 10.0, "CoordY": 15.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 3, "ModelID": "sasta_ca6140", "Type": "machine", "Width": 2.8, "Length": 1.4, "Height": 1.6, "CoordX": 10.0, "CoordY": 25.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 4, "ModelID": "rusdrill_compact", "Type": "machine", "Width": 1.2, "Length": 1.0, "Height": 1.8, "CoordX": 15.0, "CoordY": 25.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 5, "ModelID": "bit_robotics_arm", "Type": "robot", "Width": 0.8, "Length": 0.8, "Height": 1.5, "CoordX": 14.0, "CoordY": 15.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 6, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 6.0, "AngleRotation": 90.0 },
-                              { "InstanceID": 7, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 10.0, "AngleRotation": 90.0 },
-                              { "InstanceID": 8, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 14.0, "AngleRotation": 90.0 },
-                              { "InstanceID": 9, "ModelID": "solos_pallet_heavy", "Type": "rack", "Width": 2.7, "Length": 1.1, "Height": 6.0, "CoordX": 35.0, "CoordY": 18.0, "AngleRotation": 90.0 },
-                              { "InstanceID": 10, "ModelID": "shelving_r30_light", "Type": "rack", "Width": 1.0, "Length": 0.6, "Height": 2.2, "CoordX": 45.0, "CoordY": 6.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 11, "ModelID": "shelving_r30_light", "Type": "rack", "Width": 1.0, "Length": 0.6, "Height": 2.2, "CoordX": 45.0, "CoordY": 10.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 12, "ModelID": "st_cons_rack", "Type": "rack", "Width": 4.0, "Length": 1.5, "Height": 3.5, "CoordX": 42.0, "CoordY": 25.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 13, "ModelID": "robotech_agv_500", "Type": "robot", "Width": 1.2, "Length": 0.8, "Height": 0.4, "CoordX": 25.0, "CoordY": 2.0, "AngleRotation": 0.0 },
-                              { "InstanceID": 14, "ModelID": "robotech_agv_500", "Type": "robot", "Width": 1.2, "Length": 0.8, "Height": 0.4, "CoordX": 25.0, "CoordY": 28.0, "AngleRotation": 0.0 }
-                            ],
-                            "nodes": [
-                              { "NodeID": 0, "NodeX": 25.0, "NodeY": 2.0, "MarkerType": "start" },
-                              { "NodeID": 1, "NodeX": 25.0, "NodeY": 6.0, "MarkerType": "path" },
-                              { "NodeID": 2, "NodeX": 25.0, "NodeY": 15.0, "MarkerType": "path" },
-                              { "NodeID": 3, "NodeX": 25.0, "NodeY": 25.0, "MarkerType": "path" },
-                              { "NodeID": 4, "NodeX": 25.0, "NodeY": 28.0, "MarkerType": "path" },
-                              { "NodeID": 5, "NodeX": 18.0, "NodeY": 5.0, "MarkerType": "path" },
-                              { "NodeID": 6, "NodeX": 18.0, "NodeY": 15.0, "MarkerType": "path" },
-                              { "NodeID": 7, "NodeX": 18.0, "NodeY": 25.0, "MarkerType": "path" },
-                              { "NodeID": 8, "NodeX": 33.0, "NodeY": 4.0, "MarkerType": "path" },
-                              { "NodeID": 9, "NodeX": 33.0, "NodeY": 8.0, "MarkerType": "path" },
-                              { "NodeID": 10, "NodeX": 33.0, "NodeY": 12.0, "MarkerType": "path" },
-                              { "NodeID": 11, "NodeX": 33.0, "NodeY": 16.0, "MarkerType": "path" },
-                              { "NodeID": 12, "NodeX": 40.0, "NodeY": 4.0, "MarkerType": "path" },
-                              { "NodeID": 13, "NodeX": 40.0, "NodeY": 8.0, "MarkerType": "path" },
-                              { "NodeID": 14, "NodeX": 40.0, "NodeY": 25.0, "MarkerType": "path" },
-                                { "NodeID": 15, "NodeX": 42.0, "NodeY": 6.0, "MarkerType": "path" },
-                                { "NodeID": 16, "NodeX": 42.0, "NodeY": 10.0, "MarkerType": "path" }
-                            ],
-                            "edges": [
-                                { "EdgeID": 0, "StartNodeID": 0, "EndNodeID": 1, "TwoWayTraffic": true },
-                                { "EdgeID": 1, "StartNodeID": 1, "EndNodeID": 2, "TwoWayTraffic": true },
-                                { "EdgeID": 2, "StartNodeID": 2, "EndNodeID": 3, "TwoWayTraffic": true },
-                                { "EdgeID": 3, "StartNodeID": 3, "EndNodeID": 4, "TwoWayTraffic": true },
-                                { "EdgeID": 4, "StartNodeID": 1, "EndNodeID": 5, "TwoWayTraffic": true },
-                                { "EdgeID": 5, "StartNodeID": 2, "EndNodeID": 6, "TwoWayTraffic": true },
-                                { "EdgeID": 6, "StartNodeID": 3, "EndNodeID": 7, "TwoWayTraffic": true },
-                                { "EdgeID": 7, "StartNodeID": 1, "EndNodeID": 8, "TwoWayTraffic": true },
-                                { "EdgeID": 8, "StartNodeID": 8, "EndNodeID": 9, "TwoWayTraffic": true },
-                                { "EdgeID": 9, "StartNodeID": 9, "EndNodeID": 10, "TwoWayTraffic": true },
-                                { "EdgeID": 10, "StartNodeID": 10, "EndNodeID": 11, "TwoWayTraffic": true },
-                                { "EdgeID": 11, "StartNodeID": 8, "EndNodeID": 12, "TwoWayTraffic": true },
-                                { "EdgeID": 12, "StartNodeID": 9, "EndNodeID": 13, "TwoWayTraffic": true },
-                                { "EdgeID": 13, "StartNodeID": 12, "EndNodeID": 15, "TwoWayTraffic": true },
-                                { "EdgeID": 14, "StartNodeID": 13, "EndNodeID": 16, "TwoWayTraffic": true },
-                                { "EdgeID": 15, "StartNodeID": 3, "EndNodeID": 14, "TwoWayTraffic": true }
-                            ]
-                            };
-                            // Сразу создаем файл, чтобы в следующий раз он был
-                            dbManager.writeJsonFile("example.json", JSON.stringify(parsedData, null, 2));
-                        }
-
-                        if (!parsedData.walls) {
-                            parsedData.walls = {
-                                "left": 0.0, "top": 0.0,
-                                "right": w, "bottom": h
-                            };
-                        }
-
-                        mainRoot.lastGeneratedData = parsedData;
-
-                        mainRoot.selectedType = "none";
-                        mainRoot.selectedId = -1;
-                        statusLabel.text = "Готово. Данные загружены.";
-                        btnSaveToDB.enabled = true;
-                            mainCanvas.requestPaint();
-                            gridCanvas.requestPaint();
                         }
                     }
 
@@ -245,7 +274,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 35
                         font.pixelSize: 12
-                        enabled: isDbConnected && mainRoot.lastGeneratedData.layout.length > 0 && !busyLoading.running
+                        enabled: isDbConnected && mainRoot.lastGeneratedData.layout && mainRoot.lastGeneratedData.layout.length > 0 && !busyLoading.running
                         onClicked: {
                         busyLoading.running = true;
                         progressBar.visible = true;
@@ -498,7 +527,7 @@ ApplicationWindow {
                 function onOffsetYChanged() { mainCanvas.requestPaint(); gridCanvas.requestPaint(); }
             }
             Connections {
-                target: dbManager // Убедись, что имя совпадает с тем, как ты регистрировал класс в main.cpp
+            target: dbManager
 
                 function onDatabaseConnected() {
                     console.log("QML: Сигнал от БД получен!");
@@ -506,6 +535,64 @@ ApplicationWindow {
                     statusLabel.text = "✅ База данных подключена";
                 }
             }
+
+        Connections {
+            target: apiManager
+
+            function onResponseReceived(jsonResponse) {
+                console.log("QML: Получен ответ от YandexGPT");
+                busyLoading.running = false;
+
+                // Очистка от маркдауна (если модель вернула ```json ... ```)
+                let cleanJson = jsonResponse.trim();
+                if (cleanJson.startsWith("```json")) {
+                    cleanJson = cleanJson.substring(7);
+                } else if (cleanJson.startsWith("```")) {
+                    cleanJson = cleanJson.substring(3);
+                }
+                if (cleanJson.endsWith("```")) {
+                    cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+                }
+
+                // Пробуем распарсить
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(cleanJson);
+                } catch (e) {
+                    statusLabel.text = "❌ Ошибка парсинга JSON ответа";
+                    console.log("JSON Parse Error:", e.toString());
+                    console.log("Raw Response:", jsonResponse);
+                    return;
+                }
+
+                // Записываем ответ в отдельный файл, чтобы не портить example.json
+                dbManager.writeJsonFile("generated_layout.json", JSON.stringify(parsedData, null, 2));
+
+                let w = parseFloat(inputWidth.text) || 60;
+                let h = parseFloat(inputLength.text) || 40;
+                if (!parsedData.walls) {
+                    parsedData.walls = {
+                        "left": 0.0, "top": 0.0,
+                        "right": w, "bottom": h
+                    };
+                }
+
+                mainRoot.lastGeneratedData = parsedData;
+                mainRoot.selectedType = "none";
+                mainRoot.selectedId = -1;
+
+                statusLabel.text = "✅ Сгенерировано (сохранено в generated_layout.json)";
+                btnSaveToDB.enabled = true;
+                mainCanvas.requestPaint();
+                gridCanvas.requestPaint();
+            }
+
+            function onErrorOccurred(errorMessage) {
+                busyLoading.running = false;
+                statusLabel.text = "❌ Ошибка API: " + errorMessage;
+                console.log("API Error:", errorMessage);
+            }
+        }
             Canvas {
                 id: gridCanvas
                 anchors.fill: parent; opacity: appTheme === Material.Dark ? 0.15 : 0.25
@@ -755,7 +842,7 @@ ApplicationWindow {
 
     Dialog { id: promptDialog; title: "Настройка системного промпта"; width: 600; height: 450; modal: true; anchors.centerIn: parent; standardButtons: Dialog.Ok; ColumnLayout { anchors.fill: parent; spacing: 10; CheckBox { id: editSwitch; text: "Разрешить редактирование"; checked: false } ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: systemPromptArea; text: "Ты — инженер-проектировщик. Твоя задача — рассчитать координаты оборудования склада..."; readOnly: !editSwitch.checked; wrapMode: TextArea.Wrap; font.family: "Monospace"; leftPadding: 10; rightPadding: 10; topPadding: 10; bottomPadding: 10; background: Rectangle { color: systemPromptArea.readOnly ? (appTheme === Material.Dark ? "#1a1a1a" : "#f5f5f5") : colorTextAreaBg; border.color: colorBorder } } } } }
 
-    Dialog { id: aiSettingsDialog; title: "Параметры соединения с Yandex Cloud"; width: 500; height: Math.min(600, mainRoot.height * 0.9); modal: true; anchors.centerIn: parent; standardButtons: Dialog.Save | Dialog.Cancel; ScrollView { anchors.fill: parent; clip: true; ScrollBar.vertical.policy: ScrollBar.AsNeeded; ColumnLayout { width: parent.width - 20; spacing: 15; Label { text: "Авторизация"; font.bold: true; font.pixelSize: 16; color: Material.accent } TextField { id: apiKeyField; placeholderText: "API Key / OAuth Token"; echoMode: TextInput.Password; Layout.fillWidth: true } TextField { id: folderIdField; placeholderText: "Folder ID"; Layout.fillWidth: true } Rectangle { Layout.fillWidth: true; height: 1; color: colorBorder; Layout.topMargin: 5; Layout.bottomMargin: 5 } Label { text: "Настройки модели"; font.bold: true; font.pixelSize: 16; color: Material.accent } ComboBox { id: modelSelector; model: ["YandexGPT Pro", "YandexGPT Lite"]; Layout.fillWidth: true } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Плотность размещения:"; color: colorText } Item { Layout.fillWidth: true } Label { text: (densitySlider.value * 100).toFixed(0) + "%"; color: Material.accent } } Slider { id: densitySlider; from: 0.1; to: 1.0; value: 0.7; Layout.fillWidth: true } } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Температура (вариативность):"; color: colorText } Item { Layout.fillWidth: true } Label { text: tempSlider.value.toFixed(1); color: Material.accent } } Slider { id: tempSlider; from: 0; to: 1; value: 0.6; Layout.fillWidth: true } } Item { Layout.preferredHeight: 20 } } } }
+    Dialog { id: aiSettingsDialog; title: "Параметры соединения с Yandex Cloud"; width: 500; height: Math.min(600, mainRoot.height * 0.9); modal: true; anchors.centerIn: parent; standardButtons: Dialog.Save | Dialog.Cancel; ScrollView { anchors.fill: parent; clip: true; ScrollBar.vertical.policy: ScrollBar.AsNeeded; ColumnLayout { width: parent.width - 20; spacing: 15; Label { text: "Авторизация"; font.bold: true; font.pixelSize: 16; color: Material.accent } TextField { id: apiKeyField; placeholderText: "API Key / OAuth Token"; echoMode: TextInput.Password; Layout.fillWidth: true; text: "" } TextField { id: folderIdField; placeholderText: "Folder ID"; Layout.fillWidth: true; text: "" } Rectangle { Layout.fillWidth: true; height: 1; color: colorBorder; Layout.topMargin: 5; Layout.bottomMargin: 5 } Label { text: "Настройки модели"; font.bold: true; font.pixelSize: 16; color: Material.accent } ComboBox { id: modelSelector; model: ["YandexGPT Pro", "YandexGPT Lite"]; Layout.fillWidth: true } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Плотность размещения:"; color: colorText } Item { Layout.fillWidth: true } Label { text: (densitySlider.value * 100).toFixed(0) + "%"; color: Material.accent } } Slider { id: densitySlider; from: 0.1; to: 1.0; value: 0.7; Layout.fillWidth: true } } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Температура (вариативность):"; color: colorText } Item { Layout.fillWidth: true } Label { text: tempSlider.value.toFixed(1); color: Material.accent } } Slider { id: tempSlider; from: 0; to: 1; value: 0.8; Layout.fillWidth: true } } CheckBox { id: mockModeSwitch; text: "Режим имитации (не отправлять запросы, читать example.json)"; checked: true; Layout.fillWidth: true } Item { Layout.preferredHeight: 20 } } } }
 
     Dialog {
         id: showPromptDialog
@@ -781,4 +868,45 @@ ApplicationWindow {
     }
 
     Platform.FileDialog { id: dbFileDialog; title: "Открыть базу данных"; onAccepted: dbManager.connectToDatabase(file) }
+
+    Platform.FileDialog {
+        id: layoutFileDialog;
+        title: "Открыть файл компоновки (JSON)";
+        nameFilters: ["JSON files (*.json)", "All files (*)"];
+        onAccepted: {
+            // file is a URL like "file:///C:/...", we need to strip file:/// on Windows/Linux correctly
+            // readJsonFile in C++ expects a local path
+            let path = file.toString();
+            if (path.startsWith("file:///")) {
+                // On Windows: file:///C:/... -> C:/...
+                // On Linux/Mac: file:///home/... -> /home/...
+                path = path.substring(Qt.platform.os === "windows" ? 8 : 7);
+            }
+
+            let jsonString = dbManager.readJsonFile(path);
+            if (jsonString !== "") {
+                try {
+                    let parsedData = JSON.parse(jsonString);
+
+                    let w = parseFloat(inputWidth.text) || 60;
+                    let h = parseFloat(inputLength.text) || 40;
+                    if (!parsedData.walls) {
+                        parsedData.walls = { "left": 0.0, "top": 0.0, "right": w, "bottom": h };
+                    }
+
+                    mainRoot.lastGeneratedData = parsedData;
+                    mainRoot.selectedType = "none";
+                    mainRoot.selectedId = -1;
+                    statusLabel.text = "Загружен файл: " + path;
+                    btnSaveToDB.enabled = true;
+                    mainCanvas.requestPaint();
+                    gridCanvas.requestPaint();
+                } catch (e) {
+                    statusLabel.text = "❌ Ошибка: неверный формат JSON";
+                }
+            } else {
+                statusLabel.text = "❌ Ошибка чтения файла";
+            }
+        }
+    }
 }
