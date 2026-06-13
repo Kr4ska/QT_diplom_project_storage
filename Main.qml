@@ -583,15 +583,15 @@ ApplicationWindow {
                 console.log("QML: Получен ответ от YandexGPT");
                 busyLoading.running = false;
 
-                // Очистка от маркдауна (если модель вернула ```json ... ```)
                 let cleanJson = jsonResponse.trim();
-                if (cleanJson.startsWith("```json")) {
-                    cleanJson = cleanJson.substring(7);
-                } else if (cleanJson.startsWith("```")) {
-                    cleanJson = cleanJson.substring(3);
-                }
-                if (cleanJson.endsWith("```")) {
-                    cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+
+                // Умная очистка: находим первую { и последнюю }
+                // Это отсекает любой лишний текст от LLM (например "Вот ваш ответ:" или маркдаун)
+                let firstBrace = cleanJson.indexOf('{');
+                let lastBrace = cleanJson.lastIndexOf('}');
+
+                if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                    cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
                 }
 
                 // Пробуем распарсить
@@ -602,6 +602,7 @@ ApplicationWindow {
                     statusLabel.text = "❌ Ошибка парсинга JSON ответа";
                     console.log("JSON Parse Error:", e.toString());
                     console.log("Raw Response:", jsonResponse);
+                    console.log("Cleaned JSON attempted:", cleanJson);
                     return;
                 }
 

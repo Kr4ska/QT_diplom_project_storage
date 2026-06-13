@@ -58,10 +58,15 @@ QVariantMap DatabaseManager::getEquipmentInfo(const QString &modelId) {
 }
 
 QString DatabaseManager::readJsonFile(const QString &fileName) {
-    // Ищем файл рядом с исполняемым файлом или в текущей рабочей директории
-    QString filePath = QCoreApplication::applicationDirPath() + "/" + fileName;
-    if (!QFile::exists(filePath)) {
-        filePath = QDir::currentPath() + "/" + fileName; // Фолбэк на рабочую директорию
+    QString filePath = fileName;
+
+    // Если передан относительный путь (например, просто "example.json"),
+    // ищем его рядом с исполняемым файлом или в текущей директории
+    if (QFileInfo(fileName).isRelative()) {
+        filePath = QCoreApplication::applicationDirPath() + "/" + fileName;
+        if (!QFile::exists(filePath)) {
+            filePath = QDir::currentPath() + "/" + fileName; // Фолбэк на рабочую директорию
+        }
     }
 
     QFile file(filePath);
@@ -73,7 +78,13 @@ QString DatabaseManager::readJsonFile(const QString &fileName) {
 }
 
 bool DatabaseManager::writeJsonFile(const QString &fileName, const QString &jsonString) {
-    QString filePath = QCoreApplication::applicationDirPath() + "/" + fileName;
+    QString filePath = fileName;
+
+    // Если передан относительный путь, сохраняем рядом с exe
+    if (QFileInfo(fileName).isRelative()) {
+        filePath = QCoreApplication::applicationDirPath() + "/" + fileName;
+    }
+
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qDebug() << "❌ Failed to open JSON file for writing:" << filePath;
