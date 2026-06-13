@@ -870,7 +870,47 @@ ApplicationWindow {
         }
     }
 
-    Dialog { id: promptDialog; title: "Настройка системного промпта"; width: 600; height: 450; modal: true; anchors.centerIn: parent; standardButtons: Dialog.Ok; ColumnLayout { anchors.fill: parent; spacing: 10; CheckBox { id: editSwitch; text: "Разрешить редактирование"; checked: false } ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: systemPromptArea; text: "Ты — инженер-проектировщик. Твоя задача — рассчитать координаты оборудования склада..."; readOnly: !editSwitch.checked; wrapMode: TextArea.Wrap; font.family: "Monospace"; leftPadding: 10; rightPadding: 10; topPadding: 10; bottomPadding: 10; background: Rectangle { color: systemPromptArea.readOnly ? (appTheme === Material.Dark ? "#1a1a1a" : "#f5f5f5") : colorTextAreaBg; border.color: colorBorder } } } } }
+    Dialog {
+        id: promptDialog;
+        title: "Настройка системного промпта";
+        width: 800;
+        height: 600;
+        modal: true;
+        anchors.centerIn: parent;
+        standardButtons: Dialog.Ok;
+        ColumnLayout {
+            anchors.fill: parent;
+            spacing: 10;
+            CheckBox { id: editSwitch; text: "Разрешить редактирование"; checked: false }
+            ScrollView {
+                Layout.fillWidth: true;
+                Layout.fillHeight: true;
+                TextArea {
+                    id: systemPromptArea;
+                    text: "Ты — высококвалифицированный AI-инженер-проектировщик складских систем и роботизированных производственных линий.\n\n" +
+                          "ТВОЯ ЗАДАЧА:\n" +
+                          "Сгенерировать первоначальную компоновку склада (координаты оборудования, транспортную сеть узлов и пути) в строгом JSON формате, соблюдая заданные размеры помещения и список доступного оборудования.\n\n" +
+                          "ОСНОВНЫЕ ПРАВИЛА И ОГРАНИЧЕНИЯ:\n" +
+                          "1. Физические границы: Координаты X и Y всех объектов должны строго находиться внутри заданных ширины и длины помещения. Центр объекта не может выходить за пределы склада.\n" +
+                          "2. Избегание коллизий: Объекты (станки, стеллажи) не должны пересекаться друг с другом физически.\n" +
+                          "3. Транспортная сеть: Сгенерируй логичную сеть маршрутов (набор точек `nodes` и соединяющих их путей `edges`). Узлы `nodes` не должны находиться внутри оборудования (станков/стеллажей).\n" +
+                          "4. Привязка роботов: Координаты объектов типа `robot` (AGV, роборуки) должны СТРОГО совпадать с координатами одной из точек сети (узлов `nodes`), чтобы робот изначально находился на маршруте.\n" +
+                          "5. Вращение: Допустимые углы поворота (`AngleRotation`): 0, 90, 180, 270 градусов.\n" +
+                          "6. Логика размещения: Группируй схожее оборудование (станки в производственной зоне, стеллажи в зоне хранения), прокладывай главную транспортную магистраль (путь) между ними.\n\n" +
+                          "СТРУКТУРА ОТВЕТА:\n" +
+                          "Я предоставлю тебе каталог с доступным оборудованием и шаблон ответа. Ты должен вернуть ТОЛЬКО JSON, заполненный реалистичными данными, подходящими под эти правила. Никаких вступительных слов или markdown-оформления.";
+                    readOnly: !editSwitch.checked;
+                    wrapMode: TextArea.Wrap;
+                    font.family: "Monospace";
+                    leftPadding: 10; rightPadding: 10; topPadding: 10; bottomPadding: 10;
+                    background: Rectangle {
+                        color: systemPromptArea.readOnly ? (appTheme === Material.Dark ? "#1a1a1a" : "#f5f5f5") : colorTextAreaBg;
+                        border.color: colorBorder
+                    }
+                }
+            }
+        }
+    }
 
     Dialog { id: aiSettingsDialog; title: "Параметры соединения с Yandex Cloud"; width: 500; height: Math.min(600, mainRoot.height * 0.9); modal: true; anchors.centerIn: parent; standardButtons: Dialog.Save | Dialog.Cancel; ScrollView { anchors.fill: parent; clip: true; ScrollBar.vertical.policy: ScrollBar.AsNeeded; ColumnLayout { width: parent.width - 20; spacing: 15; Label { text: "Авторизация"; font.bold: true; font.pixelSize: 16; color: Material.accent } TextField { id: apiKeyField; placeholderText: "API Key / OAuth Token"; echoMode: TextInput.Password; Layout.fillWidth: true; text: "" } TextField { id: folderIdField; placeholderText: "Folder ID"; Layout.fillWidth: true; text: "" } Rectangle { Layout.fillWidth: true; height: 1; color: colorBorder; Layout.topMargin: 5; Layout.bottomMargin: 5 } Label { text: "Настройки модели"; font.bold: true; font.pixelSize: 16; color: Material.accent } ComboBox { id: modelSelector; model: ["YandexGPT Pro", "YandexGPT Lite"]; Layout.fillWidth: true } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Плотность размещения:"; color: colorText } Item { Layout.fillWidth: true } Label { text: (densitySlider.value * 100).toFixed(0) + "%"; color: Material.accent } } Slider { id: densitySlider; from: 0.1; to: 1.0; value: 0.7; Layout.fillWidth: true } } ColumnLayout { Layout.fillWidth: true; spacing: 2; RowLayout { Layout.fillWidth: true; Label { text: "Температура (вариативность):"; color: colorText } Item { Layout.fillWidth: true } Label { text: tempSlider.value.toFixed(1); color: Material.accent } } Slider { id: tempSlider; from: 0; to: 1; value: 0.8; Layout.fillWidth: true } } CheckBox { id: mockModeSwitch; text: "Режим имитации (не отправлять запросы, читать example.json)"; checked: true; Layout.fillWidth: true } Item { Layout.preferredHeight: 20 } } } }
 
