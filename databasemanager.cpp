@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QCoreApplication>
+#include <QSqlRecord>
 
 DatabaseManager::DatabaseManager(QObject *parent) : QObject(parent) {}
 
@@ -88,13 +89,20 @@ QString DatabaseManager::getAllEquipmentCatalog() {
     if (!m_db.isOpen()) return "База данных не подключена.";
 
     QSqlQuery query(m_db);
-    // Исключили Type из запроса, так как его скорее всего нет в таблице Equipment_base
-    // Используем только те поля, которые 100% есть судя по методу getEquipmentInfo
-    query.prepare("SELECT ModelID, DimWidth, DimLength FROM Equipment_base");
+    // Мы запрашиваем ModelID, габариты и EquipmentCategory
+    query.prepare("SELECT e.ModelID, e.DimWidth, e.DimLength, e.EquipCategory, "
+                  "(SELECT count(*) FROM Machine_Specs m WHERE m.ModelID = e.ModelID) as is_machine, "
+                  "(SELECT count(*) FROM Rack_Specs r WHERE r.ModelID = e.ModelID) as is_rack, "
+                  "(SELECT count(*) FROM Robot_Specs ro WHERE ro.ModelID = e.ModelID) as is_robot "
+                  "FROM Equipment_base e");
 
     if (!query.exec()) {
         qDebug() << "Error fetching equipment catalog:" << query.lastError().text();
-        return "Ошибка при чтении каталога оборудования.";
+        // Fallback на старый запрос без подзапросов, если синтаксис Access не поддержит
+        query.prepare("SELECT ModelID, DimWidth, DimLength, EquipCategory FROM Equipment_base");
+        if (!query.exec()) {
+            return "Ошибка при чтении каталога оборудования.";
+        }
     }
 
     QString catalog = "Каталог доступного оборудования:\n";
@@ -104,8 +112,30 @@ QString DatabaseManager::getAllEquipmentCatalog() {
         double w = query.value("DimWidth").toDouble();
         double l = query.value("DimLength").toDouble();
 
-        catalog += QString("- ID: %1 | Габариты (ШxД): %2x%3 м\n")
-                    .arg(modelId).arg(w).arg(l);
+        QString type = "unknown";
+
+        // Сначала проверяем флаги из связанных таблиц
+        if (query.record().contains("is_machine")) {
+            if (query.value("is_machine").toInt() > 0) {
+                type = "machine";
+            } else if (query.value("is_rack").toInt() > 0) {
+                type = "rack";
+            } else if (query.value("is_robot").toInt() > 0) {
+                type = "robot";
+            }
+        }
+
+        // Если тип не удалось определить по таблицам или подзапросы не отработали,
+        // пробуем посмотреть EquipCategory
+        if (type == "unknown" && query.record().contains("EquipCategory")) {
+            QString cat = query.value("EquipCategory").toString().toLower();
+            if (!cat.isEmpty()) {
+                type = query.value("EquipCategory").toString(); // Оригинальный регистр
+            }
+        }
+
+        catalog += QString("- ID: %1 | Тип: %2 | Габариты (ШxД): %3x%4 м\n")
+                    .arg(modelId).arg(type).arg(w).arg(l);
     }
     catalog += "---------------------------------\n";
     return catalog;
