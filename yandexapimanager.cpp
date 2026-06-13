@@ -24,7 +24,7 @@ void YandexApiManager::sendRequest(const QString &prompt, const QString &apiKey,
     QJsonObject requestBody;
     requestBody["model"] = modelUri.isEmpty() ? "gpt://" + folderId + "/yandexgpt-lite" : modelUri;
     requestBody["temperature"] = temperature;
-    requestBody["max_output_tokens"] = 1500;
+    requestBody["max_output_tokens"] = 8000;
 
     // We send plain text input as required by YandexGPT (though the user might use Completion API format)
     requestBody["input"] = prompt;
