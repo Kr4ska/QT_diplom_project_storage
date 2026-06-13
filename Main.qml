@@ -249,6 +249,19 @@ ApplicationWindow {
                                 let h = inputLength.text;
                                 let catalog = dbManager.getAllEquipmentCatalog();
 
+                                let jsonTemplate = "{\n" +
+                                    "  \"layout\": [\n" +
+                                    "    { \"InstanceID\": 1, \"ModelID\": \"<id_оборудования>\", \"Type\": \"<тип>\", \"Width\": <ширина>, \"Length\": <длина>, \"CoordX\": <x>, \"CoordY\": <y>, \"AngleRotation\": <угол> }\n" +
+                                    "  ],\n" +
+                                    "  \"nodes\": [\n" +
+                                    "    { \"NodeID\": 0, \"NodeX\": <x>, \"NodeY\": <y>, \"MarkerType\": \"start\" },\n" +
+                                    "    { \"NodeID\": 1, \"NodeX\": <x>, \"NodeY\": <y>, \"MarkerType\": \"path\" }\n" +
+                                    "  ],\n" +
+                                    "  \"edges\": [\n" +
+                                    "    { \"EdgeID\": 0, \"StartNodeID\": 0, \"EndNodeID\": 1, \"TwoWayTraffic\": true }\n" +
+                                    "  ]\n" +
+                                    "}";
+
                                 let fullPrompt = "Ты — инженер-проектировщик. Твоя задача — рассчитать координаты.\n\n" + role + "\n\n";
                                 fullPrompt += "Ширина помещения: " + w + " м\n";
                                 fullPrompt += "Длина помещения: " + h + " м\n";
@@ -256,7 +269,9 @@ ApplicationWindow {
                                     fullPrompt += "Инструкции: " + rules + "\n";
                                 }
                                 fullPrompt += "\nДОСТУПНОЕ ОБОРУДОВАНИЕ:\n" + catalog + "\n";
-                                fullPrompt += "ВЕРНИ ТОЛЬКО СТРОГИЙ JSON БЕЗ МАРКДАУНА.";
+                                fullPrompt += "=== ШАБЛОН ОТВЕТА (ОЖИДАЕТСЯ ТОЛЬКО JSON) ===\n";
+                                fullPrompt += jsonTemplate + "\n";
+                                fullPrompt += "ВЕРНИ ТОЛЬКО СТРОГИЙ JSON ПО ШАБЛОНУ ВЫШЕ, БЕЗ МАРКДАУНА И ТЕКСТА.";
 
                                 let apiKey = apiKeyField.text;
                                 let folderId = folderIdField.text;
@@ -324,6 +339,19 @@ ApplicationWindow {
                         let h = inputLength.text;
                         let catalog = dbManager.getAllEquipmentCatalog();
 
+                        let jsonTemplate = "{\n" +
+                            "  \"layout\": [\n" +
+                            "    { \"InstanceID\": 1, \"ModelID\": \"<id_оборудования>\", \"Type\": \"<тип>\", \"Width\": <ширина>, \"Length\": <длина>, \"CoordX\": <x>, \"CoordY\": <y>, \"AngleRotation\": <угол> }\n" +
+                            "  ],\n" +
+                            "  \"nodes\": [\n" +
+                            "    { \"NodeID\": 0, \"NodeX\": <x>, \"NodeY\": <y>, \"MarkerType\": \"start\" },\n" +
+                            "    { \"NodeID\": 1, \"NodeX\": <x>, \"NodeY\": <y>, \"MarkerType\": \"path\" }\n" +
+                            "  ],\n" +
+                            "  \"edges\": [\n" +
+                            "    { \"EdgeID\": 0, \"StartNodeID\": 0, \"EndNodeID\": 1, \"TwoWayTraffic\": true }\n" +
+                            "  ]\n" +
+                            "}";
+
                         let fullPrompt = "=== СИСТЕМНАЯ РОЛЬ ===\n" + role + "\n\n";
                         fullPrompt += "=== ПАРАМЕТРЫ ЗАДАЧИ ===\n";
                         fullPrompt += "Ширина помещения: " + w + " м\n";
@@ -333,6 +361,8 @@ ApplicationWindow {
                         }
                         fullPrompt += "\n=== ДОСТУПНОЕ ОБОРУДОВАНИЕ ===\n";
                         fullPrompt += catalog;
+                        fullPrompt += "\n=== ШАБЛОН ОТВЕТА (ОЖИДАЕТСЯ ТОЛЬКО JSON) ===\n";
+                        fullPrompt += jsonTemplate + "\n";
 
                             generatedPromptArea.text = fullPrompt;
                             showPromptDialog.open();
